@@ -20,6 +20,8 @@ An intelligent, client-side web application to help you discover your personal c
 -   📤 **Easy Export Options:** Copy the entire results object as JSON or export your new palette as a convenient PNG image.
 
 ---
+ Check Live Project Here : [Click Me](https://ai-color-platter.netlify.app/)
+---
 
 ## 🛠️ How It Works & Tech Stack
 
