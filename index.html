@@ -1,0 +1,787 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>AI Personal Colour Palette Picker — MVP (Face-aware)</title>
+  <style>
+    :root {
+      --bg: #0b0c10;
+      --card: #121318;
+      --muted: #9aa0a6;
+      --text: #e8eaed;
+      --brand: #7c3aed;
+      --ok: #10b981;
+      --warn: #f59e0b;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
+      background: radial-gradient(1200px 800px at 80% -10%, rgba(124, 58, 237, .25), transparent 60%), var(--bg);
+      color: var(--text);
+    }
+
+    header {
+      padding: 24px 20px 8px;
+      text-align: center;
+    }
+
+    h1 {
+      font-size: clamp(1.4rem, 3vw, 2rem);
+      margin: 0 0 8px;
+    }
+
+    p.lead {
+      color: var(--muted);
+      margin: 0 auto 12px;
+      max-width: 760px;
+    }
+
+    .container {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 12px 16px 48px;
+      display: grid;
+      gap: 16px;
+      grid-template-columns: 1fr;
+    }
+
+    @media (min-width: 1000px) {
+      .container {
+        grid-template-columns: 1.1fr .9fr;
+        align-items: start;
+      }
+    }
+
+    .card {
+      background: linear-gradient(180deg, rgba(255, 255, 255, .03), rgba(255, 255, 255, .02));
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 18px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, .25);
+      overflow: hidden;
+    }
+
+    .card h2 {
+      margin: 0;
+      padding: 14px 16px;
+      font-size: 1rem;
+      letter-spacing: .3px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+      background: rgba(0, 0, 0, .1);
+    }
+
+    .card .content {
+      padding: 16px;
+    }
+
+    .controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      align-items: center;
+    }
+
+    .controls input[type="file"] {
+      display: none;
+    }
+
+    .btn {
+      display: inline-flex;
+      gap: 8px;
+      align-items: center;
+      padding: 10px 14px;
+      background: #1b1c23;
+      color: var(--text);
+      border: 1px solid rgba(255, 255, 255, .08);
+      border-radius: 12px;
+      cursor: pointer;
+      user-select: none;
+      font-size: .95rem;
+    }
+
+    .btn.primary {
+      background: var(--brand);
+      border-color: transparent;
+    }
+
+    .btn.ghost {
+      background: transparent;
+      border-color: rgba(255, 255, 255, .18);
+    }
+
+    .btn:disabled {
+      opacity: .6;
+      cursor: not-allowed;
+    }
+
+    .stage {
+      position: relative;
+      background: #0f1117;
+      border: 1px dashed rgba(255, 255, 255, .15);
+      border-radius: 14px;
+      display: grid;
+      place-items: center;
+      overflow: hidden;
+    }
+
+    canvas {
+      max-width: 100%;
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+
+    .overlay {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+    }
+
+    .handle {
+      position: absolute;
+      width: 14px;
+      height: 14px;
+      border-radius: 999px;
+      background: white;
+      border: 2px solid #111;
+      pointer-events: auto;
+      cursor: grab;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, .4);
+    }
+
+    .swatches {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+      gap: 8px;
+    }
+
+    .swatch {
+      border-radius: 12px;
+      border: 1px solid rgba(255, 255, 255, .18);
+      overflow: hidden;
+      min-height: 84px;
+      display: grid;
+      place-items: end;
+    }
+
+    .swatch small {
+      width: 100%;
+      text-align: center;
+      background: rgba(0, 0, 0, .45);
+      padding: 4px 6px;
+      font-size: .75rem;
+      color: #fff;
+      text-shadow: 0 1px 2px rgba(0, 0, 0, .6);
+    }
+
+    .row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+
+    .tag {
+      display: inline-block;
+      padding: 4px 8px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, .06);
+      border: 1px solid rgba(255, 255, 255, .12);
+      font-size: .8rem;
+      color: var(--muted);
+    }
+
+    .muted {
+      color: var(--muted);
+    }
+
+    .divider {
+      height: 1px;
+      background: rgba(255, 255, 255, .08);
+      margin: 12px 0;
+    }
+
+    .mono {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+    }
+
+    .footer {
+      text-align: center;
+      color: var(--muted);
+      padding: 18px;
+      font-size: .85rem;
+    }
+
+    .face-overlay {
+      position: absolute;
+      left: 0;
+      top: 0;
+      pointer-events: none;
+    }
+
+    #fullscreen-loader {
+      position: fixed;
+      inset: 0;
+      z-index: 9999;
+      background: radial-gradient(1200px 800px at 80% -10%, rgba(124, 58, 237, .25), transparent 60%), var(--bg);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      transition: opacity 0.75s ease-out;
+    }
+
+    .spinner {
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      display: inline-block;
+      border-top: 4px solid var(--brand);
+      border-right: 4px solid transparent;
+      box-sizing: border-box;
+      animation: rotation 1s linear infinite;
+    }
+
+    #fullscreen-loader p {
+      color: var(--muted);
+      font-size: 0.9rem;
+      letter-spacing: 0.5px;
+    }
+
+    @keyframes rotation {
+      0% {
+        transform: rotate(0deg);
+      }
+
+      100% {
+        transform: rotate(360deg);
+      }
+    }
+
+    .content-hidden {
+      display: none !important;
+    }
+  </style>
+</head>
+
+<footer>
+  <div id="fullscreen-loader">
+    <div class="spinner"></div>
+    <p>Initializing AI Palette Engine ...</p>
+  </div>
+  <header>
+    <h1>AI Personal Colour Palette Picker</h1>
+    <p class="lead">Upload a photo, sample your skin tone from both cheeks + forehead, and get clothing colours that
+      flatter you. Fully client-side — your image never leaves your browser.</p>
+  </header>
+
+  <main class="container">
+    <section class="card">
+      <h2>1) Upload & Sample</h2>
+      <div class="content">
+        <div class="controls">
+          <label class="btn" for="fileInput">📷 Upload Image</label>
+          <input id="fileInput" type="file" accept="image/*" />
+          <button id="analyzeBtn" class="btn primary" disabled>✨ Analyze Skin Tone</button>
+          <button id="resetBtn" class="btn ghost" disabled>Reset</button>
+        </div>
+        <p class="muted" style="margin-top:8px">Tip: Use natural daylight photos. The app attempts automatic face
+          detection and will pick both cheeks and forehead. You can still nudge the sampling area manually.</p>
+
+        <div class="stage" id="stage" style="aspect-ratio: 4/3">
+          <canvas id="canvas" width="960" height="720"></canvas>
+          <canvas id="mask" class="overlay" width="960" height="720"></canvas>
+          <canvas id="faceOverlay" class="overlay" width="960" height="720"></canvas>
+          <div id="handle" class="handle" title="Drag to move"></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>2) Results</h2>
+      <div class="content">
+        <div id="results">
+          <p class="muted">No analysis yet. Upload an image to begin.</p>
+        </div>
+
+        <div class="divider"></div>
+
+        <div class="controls">
+          <button id="copyJSON" class="btn" disabled>📋 Copy Palette JSON</button>
+          <button id="exportPNG" class="btn" disabled>⬇️ Export Palette PNG</button>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer"
+    style="display: flex; align-items: center; justify-content: center; gap: 16px; flex-wrap: wrap;">
+    <span>Developed with 💗 by Elvish Patel.</span>
+    <a href="https://github.com/elvishpatel/ai-color-palette-picker/" target="_blank" rel="noopener noreferrer" title="GitHub Profile"
+      style="color: var(--muted); display: inline-flex; align-items: center; text-decoration: none;">
+      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" viewBox="0 0 16 16">
+        <path
+          d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.012 8.012 0 0 0 16 8c0-4.42-3.58-8-8-8z" />
+      </svg>
+    </a>
+  </footer>
+  <footer class="footer" style="text-align: center;"><span>© 2025 AI Personal Colour Palette Picker.</span></footer>
+
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@3.21.0/dist/tf.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/blazeface@0.0.7/dist/blazeface.min.js"></script>
+  <script>
+    (async function loadModel() {
+      const loader = document.getElementById('fullscreen-loader');
+      const content = document.querySelectorAll('.content-hidden');
+
+      try {
+        model = await blazeface.load();
+        console.log('BlazeFace loaded');
+
+        loader.style.opacity = '0';
+
+        setTimeout(() => {
+          loader.style.display = 'none';
+          content.forEach(el => el.classList.remove('content-hidden'));
+        }, 750); 
+
+      } catch (err) {
+        console.warn('Failed to load blazeface:', err);
+        loader.querySelector('.spinner').style.display = 'none';
+        loader.querySelector('p').textContent = '❌ Critical Error: Could not load AI model. Please refresh the page.';
+      }
+    })();
+    const clamp = (n, a, b) => Math.max(a, Math.min(b, n));
+    const hex = (v) => ('0' + v.toString(16)).slice(-2);
+    function rgbToHex(r, g, b) { return '#' + hex(r) + hex(g) + hex(b); }
+    function rgbToHsv(r, g, b) { r /= 255; g /= 255; b /= 255; const max = Math.max(r, g, b), min = Math.min(r, g, b); let h, s, v = max; const d = max - min; s = max === 0 ? 0 : d / max; if (max === min) { h = 0; } else { switch (max) { case r: h = (g - b) / d + (g < b ? 6 : 0); break; case g: h = (b - r) / d + 2; break; case b: h = (r - g) / d + 4; break; } h /= 6; } return { h: h * 360, s, v }; }
+    function hsvToRgb(h, s, v) { h /= 360; if (s === 0) { const val = Math.round(v * 255); return [val, val, val]; } const i = Math.floor(h * 6); const f = h * 6 - i; const p = v * (1 - s); const q = v * (1 - f * s); const t = v * (1 - (1 - f) * s); let r = 0, g = 0, b = 0; switch (i % 6) { case 0: r = v; g = t; b = p; break; case 1: r = q; g = v; b = p; break; case 2: r = p; g = v; b = t; break; case 3: r = p; g = q; b = v; break; case 4: r = t; g = p; b = v; break; case 5: r = v; g = p; b = q; break; } return [Math.round(r * 255), Math.round(g * 255), Math.round(b * 255)]; }
+
+    function rgbToYCbCr(r, g, b) { const y = 0.299 * r + 0.587 * g + 0.114 * b; const cb = 128 - 0.168736 * r - 0.331264 * g + 0.5 * b; const cr = 128 + 0.5 * r - 0.418688 * g - 0.081312 * b; return { y, cb, cr }; }
+    function likelySkin(r, g, b) { const { cb, cr, y } = rgbToYCbCr(r, g, b); return (cb > 70 && cb < 135 && cr > 125 && cr < 180 && y > 5 && y < 250); }
+
+    function median(arr) { const a = Array.from(arr).sort((x, y) => x - y); const mid = Math.floor(a.length / 2); if (a.length === 0) return 0; return a.length % 2 ? a[mid] : Math.round((a[mid - 1] + a[mid]) / 2); }
+
+    async function generatePaletteFromSkin(rgb) {
+      const input = { model: "default", input: [rgb, "N", "N", "N", "N"] };
+      try {
+        const res = await fetch("http://colormind.io/api/", {
+          method: "POST",
+          body: JSON.stringify(input)
+        });
+        if (!res.ok) {
+          console.warn("Colormind API returned an error:", res.status);
+          return [];
+        }
+        const data = await res.json();
+        if (data && Array.isArray(data.result) && data.result.length > 0 && data.result.every(c => Array.isArray(c) && c.length === 3)) {
+          return data.result.map(c => rgbToHex(c[0], c[1], c[2]));
+        }
+        console.warn("Colormind API returned invalid or empty data, falling back.");
+        return [];
+      } catch (e) {
+        console.warn("Colormind API call failed entirely, falling back.", e);
+        return [];
+      }
+    }
+
+    function adjustPaletteForSeason(palette, undertone, season) {
+      if (!Array.isArray(palette) || palette.length === 0) {
+        console.warn("Palette empty. Using fallback colors.");
+        return ["#808080", "#999999", "#666666", "#333333", "#111111", "#555555", "#777777", "#aaaaaa"];
+      }
+      const adjusted = [];
+      const baseR = parseInt(palette[0].slice(1, 3), 16);
+      const baseG = parseInt(palette[0].slice(3, 5), 16);
+      const baseB = parseInt(palette[0].slice(5, 7), 16);
+      const { h: skinH, s: skinS, v: skinV } = rgbToHsv(baseR, baseG, baseB);
+
+      if (undertone === "Warm") {
+        for (let hex of palette) {
+          let r = parseInt(hex.slice(1, 3), 16);
+          let g = parseInt(hex.slice(3, 5), 16);
+          let b = parseInt(hex.slice(5, 7), 16);
+          let { h, s, v } = rgbToHsv(r, g, b);
+          if (h > 120 && h < 240) h = (h + 30) % 360;
+          else if (h < 20 || h > 330) h = (h + 15) % 360;
+          if (season.includes("Autumn")) {
+            s = clamp(s * 0.7, 0.4, 0.8);
+            v = clamp(v * 0.7, 0.3, 0.7);
+          } else if (season.includes("Spring")) {
+            s = clamp(s * 1.1, 0.6, 1.0);
+            v = clamp(v * 1.05, 0.7, 1.0);
+          }
+          let [nr, ng, nb] = hsvToRgb(h, s, v);
+          adjusted.push(rgbToHex(nr, ng, nb));
+        }
+      } else if (undertone === "Cool") {
+        for (let hex of palette) {
+          let r = parseInt(hex.slice(1, 3), 16);
+          let g = parseInt(hex.slice(3, 5), 16);
+          let b = parseInt(hex.slice(5, 7), 16);
+          let { h, s, v } = rgbToHsv(r, g, b);
+          if (h >= 50 && h <= 180) {
+          } else if (h > 280 || h < 50) {
+            h = (h + 180) % 360;
+          }
+          if (season.includes("Summer")) {
+            s = clamp(s * 0.6, 0.3, 0.7);
+            v = clamp(v * 1.05, 0.6, 0.9);
+          } else if (season.includes("Winter")) {
+            s = clamp(s * 1.2, 0.7, 1.0);
+            v = clamp(v * 1.1, 0.7, 1.0);
+          }
+          let [nr, ng, nb] = hsvToRgb(h, s, v);
+          adjusted.push(rgbToHex(nr, ng, nb));
+        }
+        const numToInject = Math.max(0, 8 - adjusted.length);
+        const coolHues = [200, 240, 280, 160];
+        for (let i = 0; i < numToInject; i++) {
+          const targetHue = coolHues[i % coolHues.length];
+          let newS, newV;
+          if (season.includes("Summer")) {
+            newS = clamp(skinS * 0.7, 0.3, 0.6);
+            newV = clamp(skinV * 1.1, 0.7, 0.9);
+          } else {
+            newS = clamp(skinS * 1.2, 0.6, 0.9);
+            newV = clamp(skinV * 1.2, 0.8, 1.0);
+          }
+          const [r, g, b] = hsvToRgb(targetHue, newS, newV);
+          adjusted.push(rgbToHex(r, g, b));
+        }
+        const uniqueAdjusted = Array.from(new Set(adjusted));
+        adjusted.splice(0, adjusted.length, ...uniqueAdjusted.slice(0, 8));
+      }
+
+      while (adjusted.length < 8) {
+        let base = adjusted[adjusted.length % palette.length];
+        if (!base) base = adjusted[0];
+        let r = parseInt(base.slice(1, 3), 16);
+        let g = parseInt(base.slice(3, 5), 16);
+        let b = parseInt(base.slice(5, 7), 16);
+        let { h, s, v } = rgbToHsv(r, g, b);
+        h = (h + 20 * (adjusted.length)) % 360;
+        s = clamp(s * 0.95, 0.1, 1);
+        v = clamp(v * 1.05, 0.1, 1);
+        let [nr, ng, nb] = hsvToRgb(h, s, v);
+        adjusted.push(rgbToHex(nr, ng, nb));
+      }
+      const finalPalette = Array.from(new Set(adjusted)).slice(0, 8);
+      return finalPalette;
+    }
+
+
+    const fileInput = document.getElementById('fileInput');
+    const analyzeBtn = document.getElementById('analyzeBtn');
+    const resetBtn = document.getElementById('resetBtn');
+    const copyJSONBtn = document.getElementById('copyJSON');
+    const exportPNGBtn = document.getElementById('exportPNG');
+    const results = document.getElementById('results');
+    const stage = document.getElementById('stage');
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+    const mask = document.getElementById('mask');
+    const mctx = mask.getContext('2d');
+    const faceOverlay = document.getElementById('faceOverlay');
+    const fctx = faceOverlay.getContext('2d');
+    const handle = document.getElementById('handle');
+    let img = new Image();
+    let hasImage = false;
+    let model = null;
+    let faceDetection = null;
+
+    let circle = { x: canvas.width * 0.5, y: canvas.height * 0.55, r: Math.min(canvas.width, canvas.height) * 0.12 };
+
+    (async function loadModel() { try { model = await blazeface.load(); console.log('BlazeFace loaded'); } catch (err) { console.warn('Failed to load blazeface:', err); } })();
+
+    function fitImageToCanvas(image) {
+      const cw = canvas.width, ch = canvas.height;
+      const iw = image.naturalWidth || image.width, ih = image.naturalHeight || image.height;
+      const canvasAspect = cw / ch;
+      const imgAspect = iw / ih;
+
+      let dw, dh, dx, dy, scale;
+
+      if (imgAspect > canvasAspect) {
+        dw = cw;
+        scale = dw / iw;
+        dh = ih * scale;
+        dx = 0;
+        dy = (ch - dh) / 2;
+      } else {
+        dh = ch;
+        scale = dh / ih;
+        dw = iw * scale;
+        dy = 0;
+        dx = (cw - dw) / 2;
+      }
+
+      img._renderParams = { dx: Math.round(dx), dy: Math.round(dy), dw: Math.round(dw), dh: Math.round(dh), scale };
+
+      ctx.fillStyle = '#0f1117'; 
+      ctx.fillRect(0, 0, cw, ch);
+      ctx.drawImage(image, 0, 0, iw, ih, dx, dy, dw, dh);
+
+      mctx.clearRect(0, 0, mask.width, mask.height);
+      fctx.clearRect(0, 0, faceOverlay.width, faceOverlay.height);
+    }
+
+    function draw() {
+      if (hasImage && img._renderParams) {
+        const p = img._renderParams;
+        const { sx, sy, sw, sh } = { sx: 0, sy: 0, sw: img.naturalWidth, sh: img.naturalHeight };
+        
+        ctx.fillStyle = '#0f1117';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.drawImage(img, sx, sy, sw, sh, p.dx, p.dy, p.dw, p.dh);
+      } else {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+      }
+
+      mctx.clearRect(0, 0, mask.width, mask.height);
+      mctx.fillStyle = 'rgba(255,255,255,0.08)';
+      mctx.fillRect(0, 0, mask.width, mask.height);
+      mctx.save();
+      mctx.globalCompositeOperation = 'destination-out';
+      mctx.beginPath();
+      mctx.arc(circle.x, circle.y, circle.r, 0, Math.PI * 2);
+      mctx.fill();
+      mctx.restore();
+      
+      handle.style.left = (circle.x + circle.r - 7) + 'px';
+      handle.style.top = (circle.y - 7) + 'px';
+
+      fctx.clearRect(0, 0, faceOverlay.width, faceOverlay.height);
+      if (faceDetection && faceDetection.topLeft && img._renderParams) {
+        const { dx, dy, scale } = img._renderParams;
+        const [tlx, tly] = [faceDetection.topLeft[0] * scale + dx, faceDetection.topLeft[1] * scale + dy];
+        const [brx, bry] = [faceDetection.bottomRight[0] * scale + dx, faceDetection.bottomRight[1] * scale + dy];
+
+        fctx.strokeStyle = 'rgba(124,58,237,0.9)';
+        fctx.lineWidth = 2;
+        fctx.strokeRect(tlx, tly, brx - tlx, bry - tly);
+
+        if (faceDetection.landmarks) {
+          for (const lm of faceDetection.landmarks) {
+            fctx.beginPath();
+            fctx.fillStyle = 'rgba(124,58,237,0.95)';
+            fctx.arc(lm[0] * scale + dx, lm[1] * scale + dy, 3, 0, Math.PI * 2);
+            fctx.fill();
+          }
+        }
+        if (faceDetection.samplePoints) {
+          for (const sp of faceDetection.samplePoints) {
+            fctx.beginPath();
+            fctx.fillStyle = 'rgba(255,255,255,0.95)';
+            fctx.arc(sp[0] * scale + dx, sp[1] * scale + dy, 6, 0, Math.PI * 2);
+            fctx.fill();
+            fctx.beginPath();
+            fctx.strokeStyle = 'rgba(0,0,0,0.6)';
+            fctx.arc(sp[0] * scale + dx, sp[1] * scale + dy, 6, 0, Math.PI * 2);
+            fctx.stroke();
+          }
+        }
+      }
+    }
+
+    function computeCheek(landmarks, side) {
+      if (!landmarks || landmarks.length < 3) return null;
+      const rightEye = landmarks[0], leftEye = landmarks[1], nose = landmarks[2], rightEar = landmarks[4] || null, leftEar = landmarks[5] || null, eye = side === 'left' ? leftEye : rightEye;
+      const vx = nose[0] - eye[0], vy = nose[1] - eye[1], alongX = eye[0] + vx * 0.55, alongY = eye[1] + vy * 0.55; let perpX = -vy, perpY = vx;
+      const dist = Math.hypot(vx, vy) || 1, scale = 0.5 * dist, n = Math.hypot(perpX, perpY) || 1;
+      perpX = (perpX / n) * scale; perpY = (perpY / n) * scale;
+      const ear = side === 'left' ? leftEar : rightEar;
+      if (ear) { const testX = alongX + perpX, testY = alongY + perpY; const d1 = Math.hypot(ear[0] - testX, ear[1] - testY); const d2 = Math.hypot(ear[0] - (alongX - perpX), ear[1] - (alongY - perpY)); if (d2 < d1) { perpX *= -1; perpY *= -1; } }
+      return [alongX + perpX, alongY + perpY];
+    }
+
+    function computeForehead(landmarks) {
+      if (!landmarks || landmarks.length < 3) return null;
+      const rightEye = landmarks[0], leftEye = landmarks[1], midX = (rightEye[0] + leftEye[0]) / 2, midY = (rightEye[1] + leftEye[1]) / 2, nose = landmarks[2], vy = nose[1] - midY, up = -Math.abs(vy) * 0.9;
+      return [midX, midY + up * 0.6];
+    }
+
+    async function detectFaceOnImage() {
+      faceDetection = null;
+      if (!model || !hasImage || !img._renderParams) return null;
+      
+      const tempCanvas = document.createElement('canvas');
+      tempCanvas.width = img.naturalWidth;
+      tempCanvas.height = img.naturalHeight;
+      const tempCtx = tempCanvas.getContext('2d');
+      tempCtx.drawImage(img, 0, 0);
+
+      try {
+        const predictions = await model.estimateFaces(tempCanvas, false);
+        if (!predictions || predictions.length === 0) {
+          results.innerHTML = '<p class="muted">No face detected. Move the circle manually.</p>';
+          return null;
+        }
+        
+        predictions.sort((a, b) => ((b.bottomRight[0] - b.topLeft[0]) * (b.bottomRight[1] - b.topLeft[1])) - ((a.bottomRight[0] - a.topLeft[0]) * (a.bottomRight[1] - a.topLeft[1])));
+        const f = predictions[0];
+        
+        faceDetection = { topLeft: f.topLeft, bottomRight: f.bottomRight, landmarks: f.landmarks };
+
+        const leftCheek = computeCheek(f.landmarks, 'left');
+        const rightCheek = computeCheek(f.landmarks, 'right');
+        const forehead = computeForehead(f.landmarks);
+
+        const samplePoints = [];
+        if (leftCheek) samplePoints.push(leftCheek);
+        if (rightCheek) samplePoints.push(rightCheek);
+        if (forehead) samplePoints.push(forehead);
+        faceDetection.samplePoints = samplePoints;
+
+        const { dx, dy, scale } = img._renderParams;
+        const [tlx, tly] = f.topLeft;
+        const [brx, bry] = f.bottomRight;
+        const faceSize = Math.max(brx - tlx, bry - tly);
+        
+        circle.r = clamp(Math.round(faceSize * scale * 0.12), 18, Math.min(canvas.width, canvas.height) / 3);
+        circle.x = clamp((tlx + brx) / 2 * scale + dx, circle.r + 2, canvas.width - circle.r - 2);
+        circle.y = clamp((tly + bry) / 2 * scale + dy, circle.r + 2, canvas.height - circle.r - 2);
+
+        draw();
+        results.innerHTML = '<p class="muted">Face detected. Click Analyze to get your palette.</p>';
+        return f;
+      } catch (err) {
+        console.warn('Face detect error', err);
+        return null;
+      }
+    }
+    fileInput.addEventListener('change', (e) => { const file = e.target.files[0]; if (!file) return; const url = URL.createObjectURL(file); img = new Image(); img.onload = async () => { hasImage = true; fitImageToCanvas(img); analyzeBtn.disabled = false; resetBtn.disabled = false; copyJSONBtn.disabled = true; exportPNGBtn.disabled = true; await detectFaceOnImage(); }; img.src = url; });
+
+    let dragging = false, mode = 'resize';
+    handle.addEventListener('mousedown', (e) => { dragging = true; mode = e.shiftKey ? 'move' : 'resize'; handle.style.cursor = 'grabbing'; e.preventDefault(); });
+    window.addEventListener('mouseup', () => { dragging = false; handle.style.cursor = 'grab'; });
+    window.addEventListener('mousemove', (e) => { if (!dragging) return; const rect = stage.getBoundingClientRect(); const px = (e.clientX - rect.left) * (canvas.width / rect.width); const py = (e.clientY - rect.top) * (canvas.height / rect.height); if (mode === 'resize') { const dx = px - circle.x, dy = py - circle.y; circle.r = clamp(Math.hypot(dx, dy), 12, Math.min(canvas.width, canvas.height) / 2); } else { circle.x = clamp(px, circle.r + 2, canvas.width - circle.r - 2); circle.y = clamp(py, circle.r + 2, canvas.height - circle.r - 2); } draw(); });
+    stage.addEventListener('click', (e) => { if (!hasImage) return; const rect = stage.getBoundingClientRect(); const px = (e.clientX - rect.left) * (canvas.width / rect.width); const py = (e.clientY - rect.top) * (canvas.height / rect.height); const dx = px - (circle.x + circle.r - 7), dy = py - (circle.y - 7); if (Math.hypot(dx, dy) < 18) return; circle.x = clamp(px, circle.r + 2, canvas.width - circle.r - 2); circle.y = clamp(py, circle.r + 2, canvas.height - circle.r - 2); draw(); });
+    resetBtn.addEventListener('click', async () => { circle = { x: canvas.width * 0.5, y: canvas.height * 0.55, r: Math.min(canvas.width, canvas.height) * 0.12 }; draw(); results.innerHTML = '<p class="muted">Sampler reset.</p>'; copyJSONBtn.disabled = true; exportPNGBtn.disabled = true; await detectFaceOnImage(); });
+
+        analyzeBtn.addEventListener('click', async () => {
+      if (!hasImage || !img._renderParams) return;
+      if (model && !faceDetection) await detectFaceOnImage();
+      
+      const { dx, dy, scale } = img._renderParams;
+
+      const tempCanvas = document.createElement('canvas');
+      tempCanvas.width = img.naturalWidth;
+      tempCanvas.height = img.naturalHeight;
+      const tempCtx = tempCanvas.getContext('2d', { willReadFrequently: true });
+      tempCtx.drawImage(img, 0, 0);
+      const imageData = tempCtx.getImageData(0, 0, tempCanvas.width, tempCanvas.height).data;
+
+      const sampleRegions = [];
+      if (faceDetection && faceDetection.samplePoints && faceDetection.samplePoints.length > 0) {
+        const spRadius = Math.max(10, Math.round(circle.r / scale * 0.6));
+        for (const sp of faceDetection.samplePoints) {
+          sampleRegions.push({ cx: Math.round(sp[0]), cy: Math.round(sp[1]), r: spRadius });
+        }
+      } else {
+        const imgX = (circle.x - dx) / scale;
+        const imgY = (circle.y - dy) / scale;
+        const imgR = circle.r / scale;
+        sampleRegions.push({ cx: Math.round(imgX), cy: Math.round(imgY), r: Math.round(imgR * 0.6) });
+      }
+
+      const pxs = [];
+      for (const reg of sampleRegions) {
+        const { cx, cy, r } = reg, r2 = r * r;
+        for (let y = cy - r; y <= cy + r; y++) {
+          if (y < 0 || y >= tempCanvas.height) continue;
+          for (let x = cx - r; x <= cx + r; x++) {
+            if (x < 0 || x >= tempCanvas.width) continue;
+            const dx = x - cx, dy = y - cy;
+            if (dx * dx + dy * dy <= r2) {
+              const idx = (y * tempCanvas.width + x) * 4;
+              if (likelySkin(imageData[idx], imageData[idx + 1], imageData[idx + 2])) {
+                pxs.push([imageData[idx], imageData[idx + 1], imageData[idx + 2]]);
+              }
+            }
+          }
+        }
+      }
+      if (pxs.length < 150) { results.innerHTML = '<p class="muted">Not enough skin pixels detected. Try a different photo or adjust the circle.</p>'; return; }
+
+      const pixelsWithLuma = pxs.map(p => ({ r: p[0], g: p[1], b: p[2], luma: 0.299 * p[0] + 0.587 * p[1] + 0.114 * p[2] }));
+      pixelsWithLuma.sort((a, b) => a.luma - b.luma);
+      const trimPercent = 0.20; 
+      const startIndex = Math.floor(pixelsWithLuma.length * trimPercent);
+      const endIndex = Math.ceil(pixelsWithLuma.length * (1 - trimPercent));
+      const filteredPixels = pixelsWithLuma.slice(startIndex, endIndex);
+
+      if (filteredPixels.length < 50) {
+        results.innerHTML = '<p class="muted">Could not get a stable skin reading due to lighting. Try a photo with more even, natural light.</p>';
+        return;
+      }
+
+      const rs = filteredPixels.map(p => p.r), gs = filteredPixels.map(p => p.g), bs = filteredPixels.map(p => p.b);
+      const medR = median(rs), medG = median(gs), medB = median(bs);
+      const hexColor = rgbToHex(medR, medG, medB);
+      const skinHsv = rgbToHsv(medR, medG, medB);
+
+      let undertone = "Neutral";
+      if (skinHsv.h >= 25 && skinHsv.h <= 55 && skinHsv.s > 0.2) undertone = "Warm"; // More specific warm range
+      else if ((skinHsv.h >= 340 || skinHsv.h <= 20) && skinHsv.s > 0.2) undertone = "Cool"; // More specific cool range (red/pink tones)
+
+      let season = "Neutral";
+      if (undertone === "Warm") { season = skinHsv.v > 0.7 ? "Spring (Warm & Clear)" : "Autumn (Warm & Muted)"; }
+      else if (undertone === "Cool") { season = skinHsv.v > 0.7 ? "Winter (Cool & Bright)" : "Summer (Cool & Soft)"; }
+
+      const rawPalette = await generatePaletteFromSkin([medR, medG, medB]);
+      let palette;
+      if (rawPalette && rawPalette.length > 0) {
+        palette = adjustPaletteForSeason(rawPalette, undertone, season);
+      } else {
+        console.warn("API returned empty palette. Generating a manual fallback.");
+        undertone = "Neutral";
+        season = "Neutral";
+        palette = [];
+        const { h, s, v } = skinHsv;
+        palette.push(rgbToHex(...hsvToRgb((h + 180) % 360, clamp(s, 0.5, 0.8), clamp(v, 0.6, 0.9))));
+        palette.push(rgbToHex(...hsvToRgb((h + 30) % 360, clamp(s, 0.4, 0.7), clamp(v, 0.7, 1.0))));
+        palette.push(rgbToHex(...hsvToRgb((h - 30 + 360) % 360, clamp(s, 0.4, 0.7), clamp(v, 0.7, 1.0))));
+        palette.push("#FFFFFF", "#2c2c2c");
+        while (palette.length < 8) {
+          palette.push(rgbToHex(...hsvToRgb(h, Math.random() * 0.2 + 0.1, Math.random() * 0.4 + 0.6)));
+        }
+      }
+
+      const swatchHTML = palette.map(c => `<div class="swatch" style="background:${c}"><small>${c}</small></div>`).join('');
+      results.innerHTML = `
+        <div class="row">
+          <div>
+            <h3 style="margin:0 0 6px">Your Skin Read</h3>
+            <div class="tag mono">Skin RGB: ${medR},${medG},${medB} <span class="tag" style="margin-left:6px">${hexColor}</span></div>
+            <p class="muted">HSV ≈ <span class="mono">H${skinHsv.h.toFixed(0)}° S${(skinHsv.s * 100).toFixed(0)}% V${(skinHsv.v * 100).toFixed(0)}%</span></p>
+            <p><strong>Undertone:</strong> ${undertone} <br/><strong>Season (heuristic):</strong> ${season}</p>
+          </div>
+          <div>
+            <h3 style="margin:0 0 6px">Suggested Clothing Colours</h3>
+            <div class="swatches">${swatchHTML}</div>
+          </div>
+        </div>`;
+
+      copyJSONBtn.disabled = false; exportPNGBtn.disabled = false;
+      const payload = { skin: { rgb: [medR, medG, medB], hex: hexColor, hsv: skinHsv }, undertone, season, palette };
+      copyJSONBtn.onclick = async () => { try { await navigator.clipboard.writeText(JSON.stringify(payload, null, 2)); copyJSONBtn.textContent = '✅ Copied!'; setTimeout(() => copyJSONBtn.textContent = '📋 Copy Palette JSON', 1500); } catch (err) { alert('Copy failed.'); } };
+      exportPNGBtn.onclick = () => { const pad = 24, cell = 64, cols = Math.min(8, palette.length), rows = Math.ceil(palette.length / cols); const w = pad * 2 + cols * cell + (cols - 1) * 8, h = pad * 2 + rows * cell + (rows - 1) * 8 + 60; const c = document.createElement('canvas'); c.width = w; c.height = h; const c2 = c.getContext('2d'); c2.fillStyle = '#111318'; c2.fillRect(0, 0, w, h); c2.fillStyle = '#fff'; c2.font = '16px ui-sans-serif, system-ui'; c2.fillText(`Palette: ${season}`, pad, pad + 16); palette.forEach((col, i) => { const x = i % cols, y = Math.floor(i / cols); const px = pad + x * (cell + 8), py = pad + 24 + y * (cell + 8); c2.fillStyle = col; c2.fillRect(px, py, cell, cell); c2.fillStyle = 'rgba(255,255,255,.9)'; c2.fillRect(px, py + cell - 18, cell, 18); c2.fillStyle = '#111'; c2.font = '12px ui-sans-serif'; c2.fillText(col, px + 6, py + cell - 6); }); const link = document.createElement('a'); link.download = `palette_${season.replace(/[^a-z0-9]+/gi, '_').toLowerCase()}.png`; link.href = c.toDataURL('image/png'); link.click(); };
+    });
+
+    draw();
+
+    function resizeCanvasesToStage() { const rect = stage.getBoundingClientRect(); canvas.style.width = rect.width + 'px'; canvas.style.height = rect.height + 'px'; mask.style.width = rect.width + 'px'; mask.style.height = rect.height + 'px'; faceOverlay.style.width = rect.width + 'px'; faceOverlay.style.height = rect.height + 'px'; handle.style.zIndex = 10; }
+    window.addEventListener('resize', resizeCanvasesToStage);
+    resizeCanvasesToStage();
+
+  </script>
+  </body>
+
+</html>
