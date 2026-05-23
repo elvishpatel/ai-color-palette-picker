@@ -1,787 +1,992 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>AI Personal Colour Palette Picker — MVP (Face-aware)</title>
-  <style>
-    :root {
-      --bg: #0b0c10;
-      --card: #121318;
-      --muted: #9aa0a6;
-      --text: #e8eaed;
-      --brand: #7c3aed;
-      --ok: #10b981;
-      --warn: #f59e0b;
-    }
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>AI Colour Stylist</title>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet"/>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#080a0f;
+  --bg2:#0d1018;
+  --surface:#111520;
+  --surface2:#161c2a;
+  --border:rgba(255,255,255,.07);
+  --border2:rgba(255,255,255,.12);
+  --text:#f0f2ff;
+  --muted:#606880;
+  --muted2:#8890aa;
+  
+  --red:#ff4757;
+  --orange:#ff7f47;
+  --yellow:#ffd447;
+  --green:#47ffb2;
+  --cyan:#47d4ff;
+  --blue:#6e8fff;
+  --violet:#b47fff;
+  --pink:#ff47b2;
 
-    * {
-      box-sizing: border-box;
-    }
+  --accent:#7c6fff;
+  --accent2:#a78bff;
+  --accent-glow:rgba(124,111,255,.22);
 
-    body {
-      margin: 0;
-      font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
-      background: radial-gradient(1200px 800px at 80% -10%, rgba(124, 58, 237, .25), transparent 60%), var(--bg);
-      color: var(--text);
-    }
+  --ok:#47ffb2;
+  --warn:#ffd447;
+  --err:#ff4757;
 
-    header {
-      padding: 24px 20px 8px;
-      text-align: center;
-    }
+  --ff:'Outfit',sans-serif;
+  --fm:'Space Mono',monospace;
+  --r12:12px;--r16:16px;--r20:20px;--r24:24px;
+}
 
-    h1 {
-      font-size: clamp(1.4rem, 3vw, 2rem);
-      margin: 0 0 8px;
-    }
+html{scroll-behavior:smooth}
+body{font-family:var(--ff);background:var(--bg);color:var(--text);min-height:100vh;overflow-x:hidden;line-height:1.6}
 
-    p.lead {
-      color: var(--muted);
-      margin: 0 auto 12px;
-      max-width: 760px;
-    }
+body::before{
+  content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
+  background:
+    radial-gradient(ellipse 900px 600px at 110% -10%, rgba(255,71,87,.09) 0%, transparent 60%),
+    radial-gradient(ellipse 800px 700px at -10% 110%, rgba(71,212,255,.07) 0%, transparent 60%),
+    radial-gradient(ellipse 600px 500px at 50% 50%, rgba(124,111,255,.05) 0%, transparent 65%),
+    radial-gradient(ellipse 500px 400px at 85% 80%, rgba(71,255,178,.05) 0%, transparent 55%);
+}
+body::after{
+  content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
+  background-image:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(255,255,255,.012) 2px,rgba(255,255,255,.012) 4px);
+}
 
-    .container {
-      max-width: 1100px;
-      margin: 0 auto;
-      padding: 12px 16px 48px;
-      display: grid;
-      gap: 16px;
-      grid-template-columns: 1fr;
-    }
+.prism-bar{position:fixed;top:0;left:0;right:0;height:3px;z-index:1000;
+  background:linear-gradient(90deg,var(--red),var(--orange),var(--yellow),var(--green),var(--cyan),var(--blue),var(--violet),var(--pink),var(--red));
+  background-size:200% 100%;animation:prism 4s linear infinite;}
+@keyframes prism{to{background-position:200% 0}}
 
-    @media (min-width: 1000px) {
-      .container {
-        grid-template-columns: 1.1fr .9fr;
-        align-items: start;
-      }
-    }
+#loader{position:fixed;inset:0;z-index:9999;background:var(--bg);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:28px;
+  transition:opacity .7s ease}
+#loader.done{opacity:0;pointer-events:none}
+.ld-logo{font-size:2.4rem;font-weight:900;letter-spacing:-1.5px;color:var(--text)}
+.ld-logo span{
+  background:linear-gradient(90deg,var(--red),var(--orange),var(--yellow),var(--green),var(--cyan),var(--violet),var(--pink));
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
+  background-size:200%;animation:prism 3s linear infinite;
+}
+.ld-spectrum{width:180px;height:6px;border-radius:999px;overflow:hidden;background:rgba(255,255,255,.07)}
+.ld-fill{height:100%;width:0;border-radius:999px;
+  background:linear-gradient(90deg,var(--red),var(--orange),var(--yellow),var(--green),var(--cyan),var(--violet));
+  animation:lfill 2s ease forwards}
+@keyframes lfill{to{width:100%}}
+.ld-msg{font-size:.72rem;color:var(--muted2);letter-spacing:3px;text-transform:uppercase;font-family:var(--fm)}
 
-    .card {
-      background: linear-gradient(180deg, rgba(255, 255, 255, .03), rgba(255, 255, 255, .02));
-      border: 1px solid rgba(255, 255, 255, 0.08);
-      border-radius: 18px;
-      box-shadow: 0 10px 30px rgba(0, 0, 0, .25);
-      overflow: hidden;
-    }
+#toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%) translateY(60px);
+  background:var(--surface2);border:1px solid var(--border2);border-radius:10px;
+  padding:10px 22px;font-size:.83rem;color:var(--text);
+  backdrop-filter:blur(20px);z-index:9998;
+  transition:transform .35s cubic-bezier(.34,1.56,.64,1),opacity .3s;opacity:0;white-space:nowrap}
+#toast.on{transform:translateX(-50%) translateY(0);opacity:1}
 
-    .card h2 {
-      margin: 0;
-      padding: 14px 16px;
-      font-size: 1rem;
-      letter-spacing: .3px;
-      border-bottom: 1px solid rgba(255, 255, 255, 0.06);
-      background: rgba(0, 0, 0, .1);
-    }
+.wrap{position:relative;z-index:1;max-width:1280px;margin:0 auto;padding:0 22px 80px}
 
-    .card .content {
-      padding: 16px;
-    }
+header{padding:64px 0 44px;text-align:center;display:flex;flex-direction:column;align-items:center;gap:18px}
+.logo-mark{display:flex;align-items:center;gap:10px}
+.logo-icon{width:36px;height:36px;border-radius:10px;
+  background:linear-gradient(135deg,var(--red),var(--orange),var(--yellow),var(--green),var(--cyan),var(--violet));
+  display:grid;place-items:center;flex-shrink:0;position:relative;overflow:hidden}
+.logo-icon::after{content:'';position:absolute;inset:2px;border-radius:7px;background:var(--bg);
+  display:grid;place-items:center;}
+.logo-icon svg{position:relative;z-index:1}
+.logo-text{font-size:.78rem;font-weight:700;letter-spacing:4px;text-transform:uppercase;color:var(--muted2)}
 
-    .controls {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 12px;
-      align-items: center;
-    }
+h1{font-size:clamp(2.4rem,5.5vw,4rem);font-weight:900;line-height:1.02;letter-spacing:-2.5px;color:var(--text)}
+.h1-spectrum{
+  background:linear-gradient(100deg,var(--red) 0%,var(--orange) 20%,var(--yellow) 38%,var(--green) 55%,var(--cyan) 72%,var(--violet) 90%);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
+  background-size:200%;animation:prism 5s linear infinite;
+  display:block;
+}
+.lead{color:var(--muted2);max-width:540px;line-height:1.75;font-size:.95rem;font-weight:400}
 
-    .controls input[type="file"] {
-      display: none;
-    }
+.spec-line{width:80px;height:2px;border-radius:999px;
+  background:linear-gradient(90deg,var(--red),var(--orange),var(--yellow),var(--green),var(--cyan),var(--violet),var(--pink));}
 
-    .btn {
-      display: inline-flex;
-      gap: 8px;
-      align-items: center;
-      padding: 10px 14px;
-      background: #1b1c23;
-      color: var(--text);
-      border: 1px solid rgba(255, 255, 255, .08);
-      border-radius: 12px;
-      cursor: pointer;
-      user-select: none;
-      font-size: .95rem;
-    }
+.grid{display:grid;grid-template-columns:1fr;gap:20px}
+@media(min-width:960px){.grid{grid-template-columns:1.25fr .75fr;align-items:start}}
 
-    .btn.primary {
-      background: var(--brand);
-      border-color: transparent;
-    }
+.panel{background:var(--surface);border:1px solid var(--border);border-radius:var(--r24);overflow:hidden;position:relative}
+.panel::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;
+  background:linear-gradient(90deg,transparent,rgba(255,255,255,.1),transparent);pointer-events:none}
+.ph{padding:16px 22px;display:flex;align-items:center;gap:12px;
+  border-bottom:1px solid var(--border);background:rgba(0,0,0,.2)}
+.pnum{width:28px;height:28px;border-radius:8px;flex-shrink:0;display:grid;place-items:center;
+  font-size:.68rem;font-weight:700;font-family:var(--fm);
+  background:var(--surface2);border:1px solid var(--border2);color:var(--accent2)}
+.ph h2{font-size:.9rem;font-weight:600;color:var(--text);letter-spacing:.1px}
+.pb{padding:20px 22px}
 
-    .btn.ghost {
-      background: transparent;
-      border-color: rgba(255, 255, 255, .18);
-    }
+.upzone{border:1.5px dashed rgba(124,111,255,.3);border-radius:var(--r16);
+  padding:16px 20px;display:flex;align-items:center;gap:16px;cursor:pointer;
+  background:rgba(124,111,255,.04);transition:border-color .2s,background .2s;margin-bottom:18px}
+.upzone:hover{border-color:var(--accent);background:rgba(124,111,255,.09)}
+.upzone input{display:none}
+.up-icon{width:42px;height:42px;border-radius:var(--r12);flex-shrink:0;
+  background:rgba(124,111,255,.12);border:1px solid rgba(124,111,255,.2);display:grid;place-items:center}
+.upzone strong{font-size:.88rem;display:block;margin-bottom:2px;color:var(--text)}
+.upzone small{font-size:.73rem;color:var(--muted2)}
 
-    .btn:disabled {
-      opacity: .6;
-      cursor: not-allowed;
-    }
+.stagewrap{position:relative;background:#06080d;border:1px solid var(--border);
+  border-radius:var(--r16);overflow:hidden;aspect-ratio:4/3}
+.stagewrap canvas{position:absolute;top:0;left:0;width:100%;height:100%}
+#cMain{z-index:1}#cMask{z-index:2}#cFace{z-index:3}
+.empty-stage{position:absolute;inset:0;z-index:4;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;gap:14px;pointer-events:none}
+.empty-icon{width:60px;height:60px;border-radius:var(--r16);
+  background:var(--surface2);border:1px solid var(--border2);
+  display:grid;place-items:center;}
+.empty-stage p{color:var(--muted);font-size:.83rem}
 
-    .stage {
-      position: relative;
-      background: #0f1117;
-      border: 1px dashed rgba(255, 255, 255, .15);
-      border-radius: 14px;
-      display: grid;
-      place-items: center;
-      overflow: hidden;
-    }
+#handle{position:absolute;z-index:5;width:18px;height:18px;border-radius:50%;
+  background:linear-gradient(135deg,var(--red),var(--orange),var(--yellow),var(--green),var(--cyan),var(--violet));
+  border:2px solid var(--bg);cursor:grab;pointer-events:auto;
+  box-shadow:0 0 12px rgba(124,111,255,.6),0 2px 8px rgba(0,0,0,.5);
+  transition:transform .12s}
+#handle:hover{transform:scale(1.4)}#handle:active{cursor:grabbing}
 
-    canvas {
-      max-width: 100%;
-      width: 100%;
-      height: 100%;
-      display: block;
-    }
+#liveBar{position:absolute;bottom:10px;left:10px;right:10px;z-index:6;
+  background:rgba(8,10,15,.88);backdrop-filter:blur(24px);
+  border:1px solid var(--border2);border-radius:14px;padding:10px 14px;
+  display:flex;align-items:center;gap:12px;
+  transform:translateY(70px);opacity:0;
+  transition:transform .4s cubic-bezier(.34,1.56,.64,1),opacity .3s}
+#liveBar.show{transform:translateY(0);opacity:1}
+#lSwatch{width:38px;height:38px;border-radius:10px;border:1px solid rgba(255,255,255,.12);flex-shrink:0;transition:background .1s}
+#lInfo{flex:1;min-width:0}
+#lHex{font-family:var(--fm);font-size:.82rem;font-weight:700;color:var(--text)}
+#lSub{font-size:.69rem;color:var(--muted2);margin-top:1px}
+#lPrev{display:flex;gap:5px}
+.lpd{width:22px;height:22px;border-radius:6px;border:1px solid rgba(255,255,255,.1);cursor:pointer;transition:transform .15s}
+.lpd:hover{transform:scale(1.2)}
 
-    .overlay {
-      position: absolute;
-      inset: 0;
-      pointer-events: none;
-    }
+#fst{display:none;align-items:center;gap:5px;padding:4px 11px;border-radius:999px;
+  font-size:.68rem;font-weight:700;margin-left:auto;letter-spacing:.3px;font-family:var(--fm)}
+#fst.ok{background:rgba(71,255,178,.08);border:1px solid rgba(71,255,178,.22);color:var(--ok)}
+#fst.bad{background:rgba(255,71,87,.08);border:1px solid rgba(255,71,87,.2);color:var(--err)}
+#fst.loading{background:rgba(124,111,255,.08);border:1px solid rgba(124,111,255,.22);color:var(--accent2)}
+.fsdot{width:5px;height:5px;border-radius:50%;background:currentColor}
+#fst.ok .fsdot{animation:blink 1.8s infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.2}}
 
-    .handle {
-      position: absolute;
-      width: 14px;
-      height: 14px;
-      border-radius: 999px;
-      background: white;
-      border: 2px solid #111;
-      pointer-events: auto;
-      cursor: grab;
-      box-shadow: 0 2px 6px rgba(0, 0, 0, .4);
-    }
+.ctrls{display:flex;flex-wrap:wrap;gap:8px;margin-top:16px}
+.btn{display:inline-flex;align-items:center;gap:7px;padding:9px 16px;border-radius:var(--r12);
+  border:1px solid var(--border2);background:var(--surface2);color:var(--text);
+  font-family:var(--ff);font-size:.83rem;font-weight:500;cursor:pointer;
+  transition:background .18s,border-color .18s,transform .1s;letter-spacing:.1px}
+.btn:hover{background:rgba(255,255,255,.07);border-color:rgba(255,255,255,.18)}
+.btn:active{transform:scale(.97)}
+.btn:disabled{opacity:.3;cursor:not-allowed;pointer-events:none}
+.btn-main{
+  background:linear-gradient(135deg,var(--accent),#5547cc);
+  border-color:transparent;color:#fff;font-weight:700;
+  box-shadow:0 4px 24px rgba(124,111,255,.35),0 0 0 1px rgba(124,111,255,.2)}
+.btn-main:hover{box-shadow:0 6px 32px rgba(124,111,255,.5);filter:brightness(1.1)}
+.btn-main:hover{background:linear-gradient(135deg,var(--accent2),var(--accent))}
 
-    .swatches {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
-      gap: 8px;
-    }
+.tip{font-size:.74rem;color:var(--muted2);margin-top:14px;line-height:1.7;
+  padding:11px 14px;border-radius:var(--r12);
+  background:rgba(255,255,255,.03);border:1px solid var(--border)}
+.tip b{color:var(--accent2)}
 
-    .swatch {
-      border-radius: 12px;
-      border: 1px solid rgba(255, 255, 255, .18);
-      overflow: hidden;
-      min-height: 84px;
-      display: grid;
-      place-items: end;
-    }
+#resArea{min-height:100px}
+.empty-res{display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:14px;padding:48px 20px;text-align:center}
+/* spectrum icon */
+.empty-prism{width:48px;height:48px;border-radius:var(--r12);
+  background:linear-gradient(135deg,rgba(255,71,87,.15),rgba(71,212,255,.15),rgba(124,111,255,.15));
+  border:1px solid var(--border2);display:grid;place-items:center}
+.empty-res p{color:var(--muted2);font-size:.86rem;line-height:1.75}
 
-    .swatch small {
-      width: 100%;
-      text-align: center;
-      background: rgba(0, 0, 0, .45);
-      padding: 4px 6px;
-      font-size: .75rem;
-      color: #fff;
-      text-shadow: 0 1px 2px rgba(0, 0, 0, .6);
-    }
+.analyzing{display:flex;flex-direction:column;align-items:center;gap:20px;padding:50px 20px;text-align:center}
+.a-ring{width:52px;height:52px;border-radius:50%;
+  border:2px solid rgba(255,255,255,.06);
+  border-top-color:var(--red);border-right-color:var(--yellow);border-bottom-color:var(--green);border-left-color:var(--violet);
+  animation:spin 1.2s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.as1{font-size:.88rem;color:var(--text);font-weight:500}
+.as2{font-size:.72rem;color:var(--muted2);font-family:var(--fm);margin-top:3px}
 
-    .row {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 12px;
-    }
+@keyframes fadeUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
+.res-in{animation:fadeUp .45s ease forwards}
 
-    .tag {
-      display: inline-block;
-      padding: 4px 8px;
-      border-radius: 999px;
-      background: rgba(255, 255, 255, .06);
-      border: 1px solid rgba(255, 255, 255, .12);
-      font-size: .8rem;
-      color: var(--muted);
-    }
+.skin-card{display:flex;gap:16px;padding:16px;border-radius:var(--r16);
+  background:var(--surface2);border:1px solid var(--border2);margin-bottom:18px;position:relative;overflow:hidden}
+.skin-card::before{content:'';position:absolute;inset:0;
+  background:linear-gradient(135deg,rgba(255,255,255,.02),transparent);pointer-events:none}
+.skin-sw{flex-shrink:0;width:70px;height:70px;border-radius:14px;
+  border:1.5px solid rgba(255,255,255,.15);box-shadow:0 4px 20px rgba(0,0,0,.5)}
+.skin-data{flex:1;min-width:0}
+.skin-hex{font-family:var(--fm);font-size:.95rem;font-weight:700;margin-bottom:3px;color:var(--text);letter-spacing:.5px}
+.skin-meta{font-size:.72rem;color:var(--muted2);line-height:1.8}
+.bars{display:flex;flex-direction:column;gap:5px;margin-top:9px}
+.brow{display:flex;align-items:center;gap:8px}
+.blbl{font-size:.64rem;color:var(--muted2);width:12px;flex-shrink:0;font-family:var(--fm)}
+.btrack{flex:1;height:3px;border-radius:999px;background:rgba(255,255,255,.07);overflow:hidden}
+.bfill{height:100%;border-radius:999px;transition:width .8s cubic-bezier(.22,1,.36,1)}
+.bval{font-size:.64rem;color:var(--muted2);font-family:var(--fm);width:32px;text-align:right;flex-shrink:0}
 
-    .muted {
-      color: var(--muted);
-    }
+.tags{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:18px}
+.tag{display:inline-flex;align-items:center;gap:5px;padding:5px 13px;border-radius:999px;
+  font-size:.7rem;font-weight:600;letter-spacing:.4px;border:1px solid var(--border);
+  background:var(--surface2);color:var(--muted2)}
+.tag.warm{background:rgba(255,127,71,.1);border-color:rgba(255,127,71,.3);color:var(--orange)}
+.tag.cool{background:rgba(71,212,255,.08);border-color:rgba(71,212,255,.28);color:var(--cyan)}
+.tag.neutral{background:rgba(167,139,255,.08);border-color:rgba(167,139,255,.25);color:var(--accent2)}
+.tag.season{background:rgba(71,255,178,.08);border-color:rgba(71,255,178,.25);color:var(--ok)}
 
-    .divider {
-      height: 1px;
-      background: rgba(255, 255, 255, .08);
-      margin: 12px 0;
-    }
+.sec{font-size:.62rem;text-transform:uppercase;letter-spacing:3px;color:var(--muted);
+  display:flex;align-items:center;gap:10px;margin:20px 0 12px;font-weight:600;font-family:var(--fm)}
+.sec::after{content:'';flex:1;height:1px;background:var(--border)}
 
-    .mono {
-      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-    }
+.cgrid{display:grid;grid-template-columns:repeat(6,1fr);gap:7px}
+@keyframes swPop{from{opacity:0;transform:scale(.65) translateY(6px)}to{opacity:1;transform:scale(1) translateY(0)}}
+.sw{border-radius:10px;overflow:hidden;border:1px solid rgba(255,255,255,.06);
+  cursor:pointer;position:relative;transition:transform .2s,box-shadow .2s;
+  animation:swPop .45s cubic-bezier(.34,1.56,.64,1) both}
+.sw:hover{transform:translateY(-5px) scale(1.08);
+  box-shadow:0 12px 28px rgba(0,0,0,.6),0 0 0 1px rgba(255,255,255,.12);z-index:2}
+.sw-col{aspect-ratio:1;width:100%}
+.sw-hex{padding:3px 4px;text-align:center;font-family:var(--fm);font-size:.52rem;
+  background:rgba(0,0,0,.7);color:rgba(255,255,255,.85);letter-spacing:-.2px}
+.sw-hint{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+  background:rgba(0,0,0,.5);backdrop-filter:blur(2px);
+  opacity:0;transition:opacity .15s;font-size:.58rem;color:#fff;text-transform:uppercase;letter-spacing:.8px;font-family:var(--fm)}
+.sw:hover .sw-hint{opacity:1}
 
-    .footer {
-      text-align: center;
-      color: var(--muted);
-      padding: 18px;
-      font-size: .85rem;
-    }
+.chips{display:flex;flex-direction:column;gap:5px}
+.chip{display:flex;align-items:center;gap:10px;padding:9px 13px;border-radius:10px;
+  background:rgba(255,255,255,.03);border:1px solid var(--border);font-size:.8rem}
+.chip-dot{width:14px;height:14px;border-radius:4px;flex-shrink:0;border:1px solid rgba(255,255,255,.1)}
+.chip-label{font-size:.68rem;color:var(--muted2);margin-bottom:1px;font-family:var(--fm);letter-spacing:.3px}
+.chip-wear{font-size:.78rem;color:var(--text)}
 
-    .face-overlay {
-      position: absolute;
-      left: 0;
-      top: 0;
-      pointer-events: none;
-    }
+.ai-block{border-radius:var(--r16);border:1px solid var(--border);overflow:hidden;margin-top:20px;background:var(--surface)}
+.ai-tabs{display:flex;border-bottom:1px solid var(--border);background:rgba(0,0,0,.2);overflow-x:auto}
+.ai-tab{flex:1;min-width:max-content;padding:12px 12px;font-size:.76rem;font-weight:600;cursor:pointer;
+  border:none;background:transparent;color:var(--muted2);
+  transition:color .18s,background .18s;border-bottom:2px solid transparent;
+  font-family:var(--ff);text-align:center;letter-spacing:.2px;white-space:nowrap}
+.ai-tab.active{color:var(--text);border-bottom-color:var(--accent);background:rgba(124,111,255,.07)}
+.ai-tab:hover:not(.active){color:var(--text);background:rgba(255,255,255,.03)}
+.ai-body{padding:20px;min-height:140px}
 
-    #fullscreen-loader {
-      position: fixed;
-      inset: 0;
-      z-index: 9999;
-      background: radial-gradient(1200px 800px at 80% -10%, rgba(124, 58, 237, .25), transparent 60%), var(--bg);
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      gap: 12px;
-      transition: opacity 0.75s ease-out;
-    }
+.stream-text{font-size:.87rem;line-height:1.82;color:rgba(240,242,255,.88)}
+.stream-text p{margin-bottom:11px}
+.stream-text p:last-child{margin-bottom:0}
+.stream-text strong{color:var(--accent2);font-weight:600}
+.stream-text em{color:var(--cyan);font-style:normal}
+.stream-cursor{display:inline-block;width:2px;height:.85em;background:var(--accent);
+  vertical-align:middle;margin-left:2px;animation:cur .7s step-end infinite}
+@keyframes cur{0%,100%{opacity:1}50%{opacity:0}}
+.sdots{display:flex;gap:7px;align-items:center;padding:14px 0}
+.sdot{width:7px;height:7px;border-radius:50%;opacity:.25;animation:sdot 1.4s ease infinite}
+.sdot:nth-child(1){background:var(--red)}
+.sdot:nth-child(2){background:var(--yellow);animation-delay:.23s}
+.sdot:nth-child(3){background:var(--green);animation-delay:.46s}
+@keyframes sdot{0%,100%{opacity:.25;transform:scale(.8)}50%{opacity:1;transform:scale(1.3)}}
 
-    .spinner {
-      width: 48px;
-      height: 48px;
-      border-radius: 50%;
-      display: inline-block;
-      border-top: 4px solid var(--brand);
-      border-right: 4px solid transparent;
-      box-sizing: border-box;
-      animation: rotation 1s linear infinite;
-    }
+.err-box{padding:13px 16px;border-radius:var(--r12);background:rgba(255,71,87,.07);
+  border:1px solid rgba(255,71,87,.22);color:var(--err);font-size:.82rem;line-height:1.65}
 
-    #fullscreen-loader p {
-      color: var(--muted);
-      font-size: 0.9rem;
-      letter-spacing: 0.5px;
-    }
+.exprow{display:flex;gap:8px;flex-wrap:wrap;margin-top:16px;padding-top:16px;border-top:1px solid var(--border)}
 
-    @keyframes rotation {
-      0% {
-        transform: rotate(0deg);
-      }
+footer{text-align:center;padding:48px 0 0;color:var(--muted);font-size:.78rem;
+  display:flex;flex-direction:column;align-items:center;gap:6px;
+  border-top:1px solid var(--border);margin-top:64px}
+footer a{color:var(--muted2);text-decoration:none;transition:color .18s}
+footer a:hover{color:var(--accent2)}
+.fl{display:flex;gap:14px;align-items:center;padding:16px 0 8px}
+.footer-note{font-size:.68rem;opacity:.45;padding-bottom:24px}
 
-      100% {
-        transform: rotate(360deg);
-      }
-    }
-
-    .content-hidden {
-      display: none !important;
-    }
-  </style>
+::-webkit-scrollbar{width:5px}
+::-webkit-scrollbar-thumb{background:rgba(124,111,255,.3);border-radius:999px}
+</style>
 </head>
+<body>
 
-<footer>
-  <div id="fullscreen-loader">
-    <div class="spinner"></div>
-    <p>Initializing AI Palette Engine ...</p>
-  </div>
+<div class="prism-bar"></div>
+
+<div id="loader">
+  <div class="ld-logo">AI Colour Stylist</div>
+  <div class="ld-spectrum"><div class="ld-fill"></div></div>
+  <div class="ld-msg" id="ldMsg">Calibrating colour engine…</div>
+</div>
+
+<div id="toast"></div>
+
+<div class="wrap">
   <header>
-    <h1>AI Personal Colour Palette Picker</h1>
-    <p class="lead">Upload a photo, sample your skin tone from both cheeks + forehead, and get clothing colours that
-      flatter you. Fully client-side — your image never leaves your browser.</p>
+    <div class="logo-mark">
+      <div class="logo-icon">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="url(#sg)" stroke-width="2.5">
+          <defs><linearGradient id="sg" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#ff4757"/><stop offset="50%" stop-color="#47d4ff"/><stop offset="100%" stop-color="#b47fff"/></linearGradient></defs>
+          <circle cx="12" cy="12" r="3"/><path d="M12 2v3m0 14v3M2 12h3m14 0h3M5.64 5.64l2.12 2.12m8.48 8.48l2.12 2.12M18.36 5.64l-2.12 2.12M7.76 16.24l-2.12 2.12"/>
+        </svg>
+      </div>
+      <span class="logo-text">AI Colour Stylist</span>
+    </div>
+    <h1>Read Your<br/><span class="h1-spectrum">Colour Identity</span></h1>
+    <div class="spec-line"></div>
+    <p class="lead">Upload your portrait and AI will decodes your exact skin tone to build a personalised colour palette — with tailored fashion, makeup &amp; style advice.</p>
   </header>
 
-  <main class="container">
-    <section class="card">
-      <h2>1) Upload & Sample</h2>
-      <div class="content">
-        <div class="controls">
-          <label class="btn" for="fileInput">📷 Upload Image</label>
-          <input id="fileInput" type="file" accept="image/*" />
-          <button id="analyzeBtn" class="btn primary" disabled>✨ Analyze Skin Tone</button>
-          <button id="resetBtn" class="btn ghost" disabled>Reset</button>
-        </div>
-        <p class="muted" style="margin-top:8px">Tip: Use natural daylight photos. The app attempts automatic face
-          detection and will pick both cheeks and forehead. You can still nudge the sampling area manually.</p>
+  <div class="grid">
 
-        <div class="stage" id="stage" style="aspect-ratio: 4/3">
-          <canvas id="canvas" width="960" height="720"></canvas>
-          <canvas id="mask" class="overlay" width="960" height="720"></canvas>
-          <canvas id="faceOverlay" class="overlay" width="960" height="720"></canvas>
-          <div id="handle" class="handle" title="Drag to move"></div>
+    <div class="panel">
+      <div class="ph">
+        <div class="pnum">01</div>
+        <h2>Upload &amp; Sample Your Skin Tone</h2>
+        <div id="fst"><div class="fsdot"></div><span id="fstTxt">Waiting</span></div>
+      </div>
+      <div class="pb">
+        <label class="upzone" for="fi">
+          <input type="file" id="fi" accept="image/*"/>
+          <div class="up-icon">
+            <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="var(--accent2)" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5"/>
+            </svg>
+          </div>
+          <div>
+            <strong id="uplabel">Click to upload or drag &amp; drop</strong>
+            <small>JPG · PNG · WebP &nbsp;·&nbsp; well-lit portrait, facing camera</small>
+          </div>
+        </label>
+
+        <div class="stagewrap" id="stage">
+          <div class="empty-stage" id="estage">
+            <div class="empty-icon">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--muted2)" stroke-width="1.5">
+                <rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8.5" cy="8.5" r="1.5"/>
+                <path d="M21 15l-5-5L5 21"/>
+              </svg>
+            </div>
+            <p>Your photo will appear here</p>
+          </div>
+          <canvas id="cMain" width="960" height="720"></canvas>
+          <canvas id="cMask" width="960" height="720"></canvas>
+          <canvas id="cFace" width="960" height="720"></canvas>
+          <div id="handle" title="Drag = resize · Shift+Drag = move · Click canvas = reposition"></div>
+          <div id="liveBar">
+            <div id="lSwatch"></div>
+            <div id="lInfo"><div id="lHex">—</div><div id="lSub">Move circle to your cheek</div></div>
+            <div id="lPrev"></div>
+          </div>
+        </div>
+
+        <p class="tip">
+          <b>How it works:</b> Face detection auto-places sampling points on your cheeks &amp; forehead.
+          Drag the <b>spectrum handle</b> to resize the circle, or click the photo to reposition it. Then hit <b>Analyse My Colours.</b>
+        </p>
+
+        <div class="ctrls">
+          <button class="btn btn-main" id="btnAnalyze" disabled>
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+            Analyse My Colours
+          </button>
+          <button class="btn" id="btnReset" disabled>
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 109-9 9.75 9.75 0 00-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+            Reset
+          </button>
+          <button class="btn" id="btnRedetect" disabled>
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+            Re-detect
+          </button>
         </div>
       </div>
-    </section>
+    </div>
 
-    <section class="card">
-      <h2>2) Results</h2>
-      <div class="content">
-        <div id="results">
-          <p class="muted">No analysis yet. Upload an image to begin.</p>
+    <div class="panel">
+      <div class="ph">
+        <div class="pnum">02</div>
+        <h2>Your Colour Intelligence</h2>
+      </div>
+      <div class="pb">
+        <div id="resArea">
+          <div class="empty-res">
+            <div class="empty-prism">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--accent2)" stroke-width="1.5">
+                <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+              </svg>
+            </div>
+            <p>Upload a portrait photo, then click<br/><strong style="color:var(--text)">Analyse My Colours</strong><br/>to receive your full colour profile.</p>
+          </div>
         </div>
-
-        <div class="divider"></div>
-
-        <div class="controls">
-          <button id="copyJSON" class="btn" disabled>📋 Copy Palette JSON</button>
-          <button id="exportPNG" class="btn" disabled>⬇️ Export Palette PNG</button>
+        <div id="exprow" class="exprow" style="display:none">
+          <button class="btn" id="btnPNG" disabled>
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            Export PNG
+          </button>
+          <button class="btn" id="btnJSON" disabled>
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+            Copy JSON
+          </button>
         </div>
       </div>
-    </section>
-  </main>
+    </div>
 
-  <footer class="footer"
-    style="display: flex; align-items: center; justify-content: center; gap: 16px; flex-wrap: wrap;">
-    <span>Developed with 💗 by Elvish Patel.</span>
-    <a href="https://github.com/elvishpatel/ai-color-palette-picker/" target="_blank" rel="noopener noreferrer" title="GitHub Profile"
-      style="color: var(--muted); display: inline-flex; align-items: center; text-decoration: none;">
-      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" viewBox="0 0 16 16">
-        <path
-          d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.012 8.012 0 0 0 16 8c0-4.42-3.58-8-8-8z" />
-      </svg>
-    </a>
+  </div>
+
+  <footer>
+    <div class="fl">
+      <span>AI Personal Colour Stylist</span><span style="color:var(--border2)">·</span>
+      <span>by Elvish Patel</span><span style="color:var(--border2)">·</span>
+      <a href="https://github.com/elvishpatel/ai-color-palette-picker/" target="_blank">GitHub ↗</a>
+    </div>
+    <p class="footer-note">All processing is entirely in-browser · No image is uploaded anywhere</p>
   </footer>
-  <footer class="footer" style="text-align: center;"><span>© 2025 AI Personal Colour Palette Picker.</span></footer>
+</div>
 
-  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@3.21.0/dist/tf.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/blazeface@0.0.7/dist/blazeface.min.js"></script>
-  <script>
-    (async function loadModel() {
-      const loader = document.getElementById('fullscreen-loader');
-      const content = document.querySelectorAll('.content-hidden');
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@3.21.0/dist/tf.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/blazeface@0.0.7/dist/blazeface.min.js"></script>
+<script>
+const GEMINI_KEY = 'Gemini_API';
+const GEMINI_MODEL = 'gemini-2.5-flash';
 
-      try {
-        model = await blazeface.load();
-        console.log('BlazeFace loaded');
+const $=id=>document.getElementById(id);
+const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
+const h2x=v=>('0'+Math.round(clamp(v,0,255)).toString(16)).slice(-2);
+const rgb2hex=(r,g,b)=>'#'+h2x(r)+h2x(g)+h2x(b);
 
-        loader.style.opacity = '0';
+function rgb2hsv(r,g,b){
+  r/=255;g/=255;b/=255;
+  const max=Math.max(r,g,b),min=Math.min(r,g,b),d=max-min;
+  let h=0,s=max?d/max:0,v=max;
+  if(d){switch(max){
+    case r:h=((g-b)/d+(g<b?6:0))/6;break;
+    case g:h=((b-r)/d+2)/6;break;
+    case b:h=((r-g)/d+4)/6;break;
+  }}
+  return{h:h*360,s,v};
+}
+function hsv2rgb(h,s,v){
+  h=((h%360)+360)%360/360;
+  if(!s){const c=Math.round(v*255);return[c,c,c];}
+  const i=Math.floor(h*6),f=h*6-i,p=v*(1-s),q=v*(1-f*s),t=v*(1-(1-f)*s);
+  let r,g,b;
+  switch(i%6){
+    case 0:r=v;g=t;b=p;break;case 1:r=q;g=v;b=p;break;
+    case 2:r=p;g=v;b=t;break;case 3:r=p;g=q;b=v;break;
+    case 4:r=t;g=p;b=v;break;case 5:r=v;g=p;b=q;break;
+  }
+  return[Math.round(r*255),Math.round(g*255),Math.round(b*255)];
+}
+function ycbcr(r,g,b){
+  return{y:.299*r+.587*g+.114*b,cb:128-.168736*r-.331264*g+.5*b,cr:128+.5*r-.418688*g-.081312*b};
+}
+function isSkin(r,g,b){
+  const{y,cb,cr}=ycbcr(r,g,b);
+  return cb>62&&cb<142&&cr>115&&cr<190&&y>12&&y<248&&r>=g&&r>=b;
+}
+function median(a){
+  const s=[...a].sort((x,y)=>x-y),m=Math.floor(s.length/2);
+  return s.length%2?s[m]:Math.round((s[m-1]+s[m])/2);
+}
 
-        setTimeout(() => {
-          loader.style.display = 'none';
-          content.forEach(el => el.classList.remove('content-hidden'));
-        }, 750); 
+let _tt;
+function toast(msg,dur=2800){
+  const t=$('toast');t.textContent=msg;t.classList.add('on');
+  clearTimeout(_tt);_tt=setTimeout(()=>t.classList.remove('on'),dur);
+}
 
-      } catch (err) {
-        console.warn('Failed to load blazeface:', err);
-        loader.querySelector('.spinner').style.display = 'none';
-        loader.querySelector('p').textContent = '❌ Critical Error: Could not load AI model. Please refresh the page.';
-      }
-    })();
-    const clamp = (n, a, b) => Math.max(a, Math.min(b, n));
-    const hex = (v) => ('0' + v.toString(16)).slice(-2);
-    function rgbToHex(r, g, b) { return '#' + hex(r) + hex(g) + hex(b); }
-    function rgbToHsv(r, g, b) { r /= 255; g /= 255; b /= 255; const max = Math.max(r, g, b), min = Math.min(r, g, b); let h, s, v = max; const d = max - min; s = max === 0 ? 0 : d / max; if (max === min) { h = 0; } else { switch (max) { case r: h = (g - b) / d + (g < b ? 6 : 0); break; case g: h = (b - r) / d + 2; break; case b: h = (r - g) / d + 4; break; } h /= 6; } return { h: h * 360, s, v }; }
-    function hsvToRgb(h, s, v) { h /= 360; if (s === 0) { const val = Math.round(v * 255); return [val, val, val]; } const i = Math.floor(h * 6); const f = h * 6 - i; const p = v * (1 - s); const q = v * (1 - f * s); const t = v * (1 - (1 - f) * s); let r = 0, g = 0, b = 0; switch (i % 6) { case 0: r = v; g = t; b = p; break; case 1: r = q; g = v; b = p; break; case 2: r = p; g = v; b = t; break; case 3: r = p; g = q; b = v; break; case 4: r = t; g = p; b = v; break; case 5: r = v; g = p; b = q; break; } return [Math.round(r * 255), Math.round(g * 255), Math.round(b * 255)]; }
+let model=null,img=new Image(),hasImg=false,faceDet=null,lastResult=null;
+let circle={x:480,y:396,r:90},dragging=false,dragMode='resize',rtTimer=null;
 
-    function rgbToYCbCr(r, g, b) { const y = 0.299 * r + 0.587 * g + 0.114 * b; const cb = 128 - 0.168736 * r - 0.331264 * g + 0.5 * b; const cr = 128 + 0.5 * r - 0.418688 * g - 0.081312 * b; return { y, cb, cr }; }
-    function likelySkin(r, g, b) { const { cb, cr, y } = rgbToYCbCr(r, g, b); return (cb > 70 && cb < 135 && cr > 125 && cr < 180 && y > 5 && y < 250); }
+const loader=$('loader'),ldMsg=$('ldMsg');
+const fi=$('fi'),uplabel=$('uplabel');
+const btnAnalyze=$('btnAnalyze'),btnReset=$('btnReset'),btnRedetect=$('btnRedetect');
+const btnPNG=$('btnPNG'),btnJSON=$('btnJSON');
+const resArea=$('resArea'),exprow=$('exprow');
+const stage=$('stage'),handle=$('handle'),estage=$('estage');
+const fst=$('fst'),fstTxt=$('fstTxt');
+const liveBar=$('liveBar'),lSwatch=$('lSwatch'),lHex=$('lHex'),lSub=$('lSub'),lPrev=$('lPrev');
+const cMain=$('cMain'),cMask=$('cMask'),cFace=$('cFace');
+const ctx=cMain.getContext('2d',{willReadFrequently:true});
+const mctx=cMask.getContext('2d');
+const fctx=cFace.getContext('2d');
 
-    function median(arr) { const a = Array.from(arr).sort((x, y) => x - y); const mid = Math.floor(a.length / 2); if (a.length === 0) return 0; return a.length % 2 ? a[mid] : Math.round((a[mid - 1] + a[mid]) / 2); }
+(async()=>{
+  const msgs=['Calibrating colour engine…','Loading face detection AI…','Almost ready…'];
+  let mi=0;const iv=setInterval(()=>{ldMsg.textContent=msgs[++mi%msgs.length];},900);
+  try{model=await blazeface.load();clearInterval(iv);ldMsg.textContent='Ready ✓';}
+  catch(e){clearInterval(iv);ldMsg.textContent='Manual mode active';console.warn(e);}
+  await new Promise(r=>setTimeout(r,500));
+  loader.classList.add('done');
+  setTimeout(()=>{loader.style.display='none';},800);
+})();
 
-    async function generatePaletteFromSkin(rgb) {
-      const input = { model: "default", input: [rgb, "N", "N", "N", "N"] };
-      try {
-        const res = await fetch("http://colormind.io/api/", {
-          method: "POST",
-          body: JSON.stringify(input)
-        });
-        if (!res.ok) {
-          console.warn("Colormind API returned an error:", res.status);
-          return [];
-        }
-        const data = await res.json();
-        if (data && Array.isArray(data.result) && data.result.length > 0 && data.result.every(c => Array.isArray(c) && c.length === 3)) {
-          return data.result.map(c => rgbToHex(c[0], c[1], c[2]));
-        }
-        console.warn("Colormind API returned invalid or empty data, falling back.");
-        return [];
-      } catch (e) {
-        console.warn("Colormind API call failed entirely, falling back.", e);
-        return [];
+function fitImg(){
+  const cw=cMain.width,ch=cMain.height,iw=img.naturalWidth,ih=img.naturalHeight;
+  const scale=Math.min(cw/iw,ch/ih);
+  const dw=Math.round(iw*scale),dh=Math.round(ih*scale);
+  const dx=Math.round((cw-dw)/2),dy=Math.round((ch-dh)/2);
+  img._rp={dx,dy,dw,dh,scale};
+  ctx.fillStyle='#06080d';ctx.fillRect(0,0,cw,ch);
+  ctx.drawImage(img,0,0,iw,ih,dx,dy,dw,dh);
+  mctx.clearRect(0,0,cMask.width,cMask.height);
+  fctx.clearRect(0,0,cFace.width,cFace.height);
+}
+
+function drawMask(){
+  const W=cMask.width,H=cMask.height;
+  mctx.clearRect(0,0,W,H);
+  mctx.fillStyle='rgba(0,0,0,.58)';mctx.fillRect(0,0,W,H);
+  mctx.save();mctx.globalCompositeOperation='destination-out';
+  mctx.beginPath();mctx.arc(circle.x,circle.y,circle.r,0,Math.PI*2);mctx.fill();
+  mctx.restore();
+  const grad=mctx.createConicalGradient?.(circle.x,circle.y,0) || null;
+  mctx.save();
+  mctx.lineWidth=2.5;
+  const cols=['#ff4757','#ff7f47','#ffd447','#47ffb2','#47d4ff','#6e8fff','#b47fff','#ff47b2'];
+  for(let i=0;i<cols.length;i++){
+    const a1=(i/cols.length)*Math.PI*2-Math.PI/2;
+    const a2=((i+1)/cols.length)*Math.PI*2-Math.PI/2;
+    mctx.strokeStyle=cols[i];
+    mctx.shadowColor=cols[i];mctx.shadowBlur=8;
+    mctx.beginPath();mctx.arc(circle.x,circle.y,circle.r,a1,a2);mctx.stroke();
+  }
+  mctx.restore();
+  handle.style.left=(circle.x+circle.r-9)+'px';
+  handle.style.top=(circle.y-9)+'px';
+}
+
+function drawFace(){
+  fctx.clearRect(0,0,cFace.width,cFace.height);
+  if(!faceDet||!img._rp)return;
+  const{dx,dy,scale}=img._rp;
+  const[tlx,tly]=faceDet.topLeft,[brx,bry]=faceDet.bottomRight;
+  const x1=tlx*scale+dx,y1=tly*scale+dy,x2=brx*scale+dx,y2=bry*scale+dy;
+  fctx.save();
+  fctx.strokeStyle='rgba(124,111,255,.55)';fctx.lineWidth=1.5;fctx.setLineDash([5,5]);
+  fctx.beginPath();fctx.roundRect(x1,y1,x2-x1,y2-y1,6);fctx.stroke();
+  fctx.restore();
+  if(faceDet.landmarks){
+    for(const lm of faceDet.landmarks){
+      fctx.beginPath();fctx.arc(lm[0]*scale+dx,lm[1]*scale+dy,2.5,0,Math.PI*2);
+      fctx.fillStyle='rgba(167,139,255,.8)';fctx.fill();
+    }
+  }
+  if(faceDet.samplePts){
+    for(const sp of faceDet.samplePts){
+      const px=sp[0]*scale+dx,py=sp[1]*scale+dy;
+      fctx.beginPath();fctx.arc(px,py,7,0,Math.PI*2);
+      fctx.fillStyle='rgba(71,255,178,.7)';fctx.fill();
+      fctx.strokeStyle='rgba(0,0,0,.5)';fctx.lineWidth=1.5;fctx.stroke();
+    }
+  }
+}
+
+function getCheek(lms,side){
+  if(!lms||lms.length<3)return null;
+  const re=lms[0],le=lms[1],nose=lms[2];
+  const eye=side==='left'?le:re;
+  const vx=nose[0]-eye[0],vy=nose[1]-eye[1];
+  const ax=eye[0]+vx*.55,ay=eye[1]+vy*.55;
+  let px=-vy,py=vx;
+  const dist=Math.hypot(vx,vy)||1,sc=.48*dist,n=Math.hypot(px,py)||1;
+  px=px/n*sc;py=py/n*sc;
+  const ear=side==='left'?(lms[5]||null):(lms[4]||null);
+  if(ear){const d1=Math.hypot(ear[0]-(ax+px),ear[1]-(ay+py)),d2=Math.hypot(ear[0]-(ax-px),ear[1]-(ay-py));if(d2<d1){px*=-1;py*=-1;}}
+  return[ax+px,ay+py];
+}
+function getForehead(lms){
+  if(!lms||lms.length<3)return null;
+  const re=lms[0],le=lms[1],mx=(re[0]+le[0])/2,my=(re[1]+le[1])/2,nose=lms[2];
+  return[mx,my-Math.abs(nose[1]-my)*.88];
+}
+
+async function detectFace(){
+  if(!model||!hasImg||!img._rp)return;
+  fst.style.display='inline-flex';fst.className='loading';fstTxt.textContent='Detecting…';
+  const tmp=document.createElement('canvas');tmp.width=img.naturalWidth;tmp.height=img.naturalHeight;
+  tmp.getContext('2d').drawImage(img,0,0);
+  try{
+    const preds=await model.estimateFaces(tmp,false);
+    if(!preds||!preds.length){faceDet=null;drawFace();fst.className='bad';fstTxt.textContent='No face found';return;}
+    preds.sort((a,b)=>(b.bottomRight[0]-b.topLeft[0])*(b.bottomRight[1]-b.topLeft[1])-(a.bottomRight[0]-a.topLeft[0])*(a.bottomRight[1]-a.topLeft[1]));
+    const f=preds[0];
+    const lc=getCheek(f.landmarks,'left'),rc=getCheek(f.landmarks,'right'),fh=getForehead(f.landmarks);
+    faceDet={topLeft:f.topLeft,bottomRight:f.bottomRight,landmarks:f.landmarks,samplePts:[lc,rc,fh].filter(Boolean)};
+    const{dx,dy,scale}=img._rp;
+    const[tlx,tly]=f.topLeft,[brx,bry]=f.bottomRight;
+    const sz=Math.max(brx-tlx,bry-tly);
+    circle.r=clamp(Math.round(sz*scale*.13),20,Math.min(cMain.width,cMain.height)/3);
+    circle.x=clamp((tlx+brx)/2*scale+dx,circle.r+2,cMain.width-circle.r-2);
+    circle.y=clamp((tly+bry)/2*scale+dy,circle.r+2,cMain.height-circle.r-2);
+    drawMask();drawFace();
+    fst.className='ok';fstTxt.textContent='Face detected ✓';
+  }catch(e){console.warn(e);fst.className='bad';fstTxt.textContent='Detection error';}
+}
+
+fi.addEventListener('change',async e=>{
+  const file=e.target.files[0];if(!file)return;
+  uplabel.textContent=file.name;
+  img=new Image();
+  img.onload=async()=>{
+    hasImg=true;estage.style.display='none';
+    fitImg();drawMask();drawFace();
+    btnAnalyze.disabled=false;btnReset.disabled=false;btnRedetect.disabled=false;
+    btnPNG.disabled=true;btnJSON.disabled=true;exprow.style.display='none';
+    resArea.innerHTML=`<div class="empty-res"><p>Photo loaded. Running face detection…</p></div>`;
+    await detectFace();doLive();
+  };
+  img.src=URL.createObjectURL(file);
+});
+
+handle.addEventListener('mousedown',e=>{dragging=true;dragMode=e.shiftKey?'move':'resize';handle.style.cursor='grabbing';e.preventDefault();e.stopPropagation();});
+window.addEventListener('mouseup',()=>{dragging=false;handle.style.cursor='grab';});
+window.addEventListener('mousemove',e=>{
+  if(!dragging)return;
+  const r=stage.getBoundingClientRect();
+  const px=(e.clientX-r.left)*(cMain.width/r.width),py=(e.clientY-r.top)*(cMain.height/r.height);
+  if(dragMode==='resize')circle.r=clamp(Math.hypot(px-circle.x,py-circle.y),14,Math.min(cMain.width,cMain.height)/2);
+  else{circle.x=clamp(px,circle.r+2,cMain.width-circle.r-2);circle.y=clamp(py,circle.r+2,cMain.height-circle.r-2);}
+  drawMask();clearTimeout(rtTimer);rtTimer=setTimeout(doLive,85);
+});
+handle.addEventListener('touchstart',e=>{dragging=true;dragMode='move';e.preventDefault();},{passive:false});
+window.addEventListener('touchend',()=>{dragging=false;});
+window.addEventListener('touchmove',e=>{
+  if(!dragging)return;
+  const t=e.touches[0],r=stage.getBoundingClientRect();
+  const px=(t.clientX-r.left)*(cMain.width/r.width),py=(t.clientY-r.top)*(cMain.height/r.height);
+  circle.x=clamp(px,circle.r+2,cMain.width-circle.r-2);circle.y=clamp(py,circle.r+2,cMain.height-circle.r-2);
+  drawMask();clearTimeout(rtTimer);rtTimer=setTimeout(doLive,85);
+},{passive:false});
+stage.addEventListener('click',e=>{
+  if(!hasImg)return;
+  const r=stage.getBoundingClientRect();
+  const px=(e.clientX-r.left)*(cMain.width/r.width),py=(e.clientY-r.top)*(cMain.height/r.height);
+  if(Math.hypot(px-(circle.x+circle.r-9),py-(circle.y-9))<16)return;
+  circle.x=clamp(px,circle.r+2,cMain.width-circle.r-2);circle.y=clamp(py,circle.r+2,cMain.height-circle.r-2);
+  drawMask();doLive();
+});
+
+btnReset.addEventListener('click',async()=>{
+  circle={x:cMain.width*.5,y:cMain.height*.55,r:Math.min(cMain.width,cMain.height)*.12};
+  faceDet=null;drawMask();drawFace();
+  btnPNG.disabled=true;btnJSON.disabled=true;exprow.style.display='none';
+  resArea.innerHTML=`<div class="empty-res"><p>Reset. Re-running face detection…</p></div>`;
+  await detectFace();doLive();
+});
+btnRedetect.addEventListener('click',async()=>{faceDet=null;await detectFace();doLive();});
+
+function doLive(){
+  if(!hasImg||!img._rp){liveBar.classList.remove('show');return;}
+  const{dx,dy,scale}=img._rp;
+  const tmp=document.createElement('canvas');tmp.width=img.naturalWidth;tmp.height=img.naturalHeight;
+  const tc=tmp.getContext('2d',{willReadFrequently:true});tc.drawImage(img,0,0);
+  const data=tc.getImageData(0,0,tmp.width,tmp.height).data;
+  const ix=(circle.x-dx)/scale,iy=(circle.y-dy)/scale,ir=circle.r/scale*.48;
+  const pxs=[];
+  for(let y=iy-ir;y<=iy+ir;y+=2){
+    for(let x=ix-ir;x<=ix+ir;x+=2){
+      const xi=Math.round(x),yi=Math.round(y);
+      if(xi<0||yi<0||xi>=tmp.width||yi>=tmp.height)continue;
+      if((xi-ix)**2+(yi-iy)**2>ir*ir)continue;
+      const i=(yi*tmp.width+xi)*4;
+      if(isSkin(data[i],data[i+1],data[i+2]))pxs.push([data[i],data[i+1],data[i+2]]);
+    }
+  }
+  if(pxs.length<10){liveBar.classList.remove('show');return;}
+  const mr=median(pxs.map(p=>p[0])),mg=median(pxs.map(p=>p[1])),mb=median(pxs.map(p=>p[2]));
+  const hex=rgb2hex(mr,mg,mb);
+  lSwatch.style.background=hex;lHex.textContent=hex.toUpperCase();
+  const{h,s,v}=rgb2hsv(mr,mg,mb);
+  const harm=[
+    rgb2hex(...hsv2rgb((h+180)%360,clamp(s*.88,.28,1),clamp(v*1.1,.55,1))),
+    rgb2hex(...hsv2rgb((h+90)%360,clamp(s*.82,.28,1),clamp(v*1.05,.55,1))),
+    rgb2hex(...hsv2rgb((h+270)%360,clamp(s*.82,.28,1),clamp(v*1.05,.55,1))),
+    rgb2hex(...hsv2rgb((h+150)%360,clamp(s*.78,.25,.95),clamp(v*1.1,.6,1))),
+  ];
+  lPrev.innerHTML=harm.map(c=>`<div class="lpd" style="background:${c}" title="${c.toUpperCase()}" onclick="event.stopPropagation();navigator.clipboard.writeText('${c}').then(()=>toast('Copied ${c.toUpperCase()}'))"></div>`).join('');
+  const ut=s>0.13?(h>=15&&h<=65?'Warm':(h>180||h<15?'Cool':'Neutral')):'Neutral';
+  lSub.textContent=`Live sample · ${ut} undertone`;
+  liveBar.classList.add('show');
+}
+
+function sampleSkin(){
+  if(!hasImg||!img._rp)return null;
+  const{dx,dy,scale}=img._rp;
+  const tmp=document.createElement('canvas');tmp.width=img.naturalWidth;tmp.height=img.naturalHeight;
+  const tc=tmp.getContext('2d',{willReadFrequently:true});tc.drawImage(img,0,0);
+  const data=tc.getImageData(0,0,tmp.width,tmp.height).data;
+  const regs=[];
+  if(faceDet&&faceDet.samplePts&&faceDet.samplePts.length){
+    const sr=Math.max(16,Math.round(circle.r/scale*.52));
+    for(const sp of faceDet.samplePts)regs.push({cx:Math.round(sp[0]),cy:Math.round(sp[1]),r:sr});
+  }else{
+    const ix=(circle.x-dx)/scale,iy=(circle.y-dy)/scale,ir=circle.r/scale;
+    regs.push({cx:Math.round(ix),cy:Math.round(iy),r:Math.round(ir*.52)});
+  }
+  const pxs=[];
+  for(const{cx,cy,r}of regs){
+    const r2=r*r;
+    for(let y=cy-r;y<=cy+r;y++){
+      if(y<0||y>=tmp.height)continue;
+      for(let x=cx-r;x<=cx+r;x++){
+        if(x<0||x>=tmp.width)continue;
+        if((x-cx)**2+(y-cy)**2>r2)continue;
+        const i=(y*tmp.width+x)*4;
+        if(isSkin(data[i],data[i+1],data[i+2]))pxs.push([data[i],data[i+1],data[i+2]]);
       }
     }
+  }
+  if(pxs.length<55)return null;
+  const wl=pxs.map(p=>({r:p[0],g:p[1],b:p[2],l:.299*p[0]+.587*p[1]+.114*p[2]}));
+  wl.sort((a,b)=>a.l-b.l);
+  const t=.15,sl=wl.slice(Math.floor(wl.length*t),Math.ceil(wl.length*(1-t)));
+  if(sl.length<28)return null;
+  const r=median(sl.map(p=>p.r)),g=median(sl.map(p=>p.g)),b=median(sl.map(p=>p.b));
+  return{r,g,b,hex:rgb2hex(r,g,b),hsv:rgb2hsv(r,g,b)};
+}
 
-    function adjustPaletteForSeason(palette, undertone, season) {
-      if (!Array.isArray(palette) || palette.length === 0) {
-        console.warn("Palette empty. Using fallback colors.");
-        return ["#808080", "#999999", "#666666", "#333333", "#111111", "#555555", "#777777", "#aaaaaa"];
-      }
-      const adjusted = [];
-      const baseR = parseInt(palette[0].slice(1, 3), 16);
-      const baseG = parseInt(palette[0].slice(3, 5), 16);
-      const baseB = parseInt(palette[0].slice(5, 7), 16);
-      const { h: skinH, s: skinS, v: skinV } = rgbToHsv(baseR, baseG, baseB);
+function classify(hsv){
+  const{h,s,v}=hsv;
+  let undertone='Neutral';
+  if(s>0.13){
+    if(h>=14&&h<=68)undertone='Warm';
+    else if((h>180&&h<=285)||(h<14||h>335))undertone='Cool';
+  }
+  const depth=v>0.76?'Light':v<0.40?'Deep':'Medium';
+  let season='Neutral';
+  if(undertone==='Warm')season=v>0.62?'Spring':'Autumn';
+  else if(undertone==='Cool')season=v>0.62?'Winter':'Summer';
+  return{undertone,depth,season};
+}
 
-      if (undertone === "Warm") {
-        for (let hex of palette) {
-          let r = parseInt(hex.slice(1, 3), 16);
-          let g = parseInt(hex.slice(3, 5), 16);
-          let b = parseInt(hex.slice(5, 7), 16);
-          let { h, s, v } = rgbToHsv(r, g, b);
-          if (h > 120 && h < 240) h = (h + 30) % 360;
-          else if (h < 20 || h > 330) h = (h + 15) % 360;
-          if (season.includes("Autumn")) {
-            s = clamp(s * 0.7, 0.4, 0.8);
-            v = clamp(v * 0.7, 0.3, 0.7);
-          } else if (season.includes("Spring")) {
-            s = clamp(s * 1.1, 0.6, 1.0);
-            v = clamp(v * 1.05, 0.7, 1.0);
-          }
-          let [nr, ng, nb] = hsvToRgb(h, s, v);
-          adjusted.push(rgbToHex(nr, ng, nb));
-        }
-      } else if (undertone === "Cool") {
-        for (let hex of palette) {
-          let r = parseInt(hex.slice(1, 3), 16);
-          let g = parseInt(hex.slice(3, 5), 16);
-          let b = parseInt(hex.slice(5, 7), 16);
-          let { h, s, v } = rgbToHsv(r, g, b);
-          if (h >= 50 && h <= 180) {
-          } else if (h > 280 || h < 50) {
-            h = (h + 180) % 360;
-          }
-          if (season.includes("Summer")) {
-            s = clamp(s * 0.6, 0.3, 0.7);
-            v = clamp(v * 1.05, 0.6, 0.9);
-          } else if (season.includes("Winter")) {
-            s = clamp(s * 1.2, 0.7, 1.0);
-            v = clamp(v * 1.1, 0.7, 1.0);
-          }
-          let [nr, ng, nb] = hsvToRgb(h, s, v);
-          adjusted.push(rgbToHex(nr, ng, nb));
-        }
-        const numToInject = Math.max(0, 8 - adjusted.length);
-        const coolHues = [200, 240, 280, 160];
-        for (let i = 0; i < numToInject; i++) {
-          const targetHue = coolHues[i % coolHues.length];
-          let newS, newV;
-          if (season.includes("Summer")) {
-            newS = clamp(skinS * 0.7, 0.3, 0.6);
-            newV = clamp(skinV * 1.1, 0.7, 0.9);
-          } else {
-            newS = clamp(skinS * 1.2, 0.6, 0.9);
-            newV = clamp(skinV * 1.2, 0.8, 1.0);
-          }
-          const [r, g, b] = hsvToRgb(targetHue, newS, newV);
-          adjusted.push(rgbToHex(r, g, b));
-        }
-        const uniqueAdjusted = Array.from(new Set(adjusted));
-        adjusted.splice(0, adjusted.length, ...uniqueAdjusted.slice(0, 8));
-      }
+function buildPalette(skin){
+  const{h,s,v}=skin.hsv,cls=skin.cls;
+  const isW=cls.undertone==='Warm',vM=clamp(v,.52,.9),sD=clamp(s,.28,.88);
+  const cfgs=[
+    {h:isW?28:218,s:clamp(sD*.58,.22,.56),v:clamp(vM*.42,.18,.5),lbl:'Deep Base',wear:'Trousers · Jeans · Blazer'},
+    {h:isW?33:202,s:clamp(sD*.13,.04,.2),v:clamp(vM*1.16,.82,.98),lbl:'Soft Neutral',wear:'Shirts · Blouses · Tees'},
+    {h:(h+178)%360,s:clamp(sD*1.12,.52,1),v:clamp(vM*1.06,.65,1),lbl:'Statement',wear:'Bold dress · Statement top'},
+    {h:isW?22:216,s:clamp(sD*.76,.38,.82),v:clamp(vM*.68,.32,.72),lbl:'Rich Mid',wear:'Knitwear · Jackets'},
+    {h:(h+122)%360,s:clamp(sD*1.18,.55,1),v:clamp(vM*1.1,.7,1),lbl:'Pop',wear:'Scarves · Bags · Shoes'},
+    {h:(h+32)%360,s:clamp(sD*.52,.18,.58),v:clamp(vM*.62,.32,.7),lbl:'Muted',wear:'Weekend casuals'},
+    {h:(h+178)%360,s:clamp(sD*.32,.12,.42),v:clamp(vM*1.22,.86,1),lbl:'Pastel',wear:'Layering · Scarves'},
+    {h:isW?18:228,s:clamp(sD*.48,.18,.58),v:clamp(vM*.26,.08,.36),lbl:'Dark',wear:'Formal · Eveningwear'},
+    {h:isW?38:198,s:clamp(sD*.1,.03,.16),v:clamp(vM*.9,.66,.94),lbl:'Metallic',wear:'Jewellery · Belts · Shoes'},
+    {h:(h+152)%360,s:clamp(sD*1.15,.6,1),v:clamp(vM*1.08,.72,1),lbl:'Accent',wear:'Accessories · Colour pops'},
+    {h:isW?27:204,s:clamp(sD*.28,.08,.36),v:clamp(vM*1.06,.72,.97),lbl:'Nude',wear:'Nude heels · Nude bags'},
+    {h:(h+212)%360,s:clamp(sD*.84,.38,.9),v:clamp(vM*.6,.3,.68),lbl:'Deep Accent',wear:'Coats · Outer layers'},
+  ];
+  const used=new Set(),pal=[];
+  for(const cfg of cfgs){
+    let[r,g,b]=hsv2rgb(cfg.h,cfg.s,cfg.v);
+    r=clamp(r+Math.round((skin.r-128)*.035),0,255);
+    g=clamp(g+Math.round((skin.g-128)*.035),0,255);
+    b=clamp(b+Math.round((skin.b-128)*.035),0,255);
+    const hex=rgb2hex(r,g,b);
+    if(!used.has(hex)){used.add(hex);pal.push({hex,lbl:cfg.lbl,wear:cfg.wear});}
+  }
+  return pal;
+}
 
-      while (adjusted.length < 8) {
-        let base = adjusted[adjusted.length % palette.length];
-        if (!base) base = adjusted[0];
-        let r = parseInt(base.slice(1, 3), 16);
-        let g = parseInt(base.slice(3, 5), 16);
-        let b = parseInt(base.slice(5, 7), 16);
-        let { h, s, v } = rgbToHsv(r, g, b);
-        h = (h + 20 * (adjusted.length)) % 360;
-        s = clamp(s * 0.95, 0.1, 1);
-        v = clamp(v * 1.05, 0.1, 1);
-        let [nr, ng, nb] = hsvToRgb(h, s, v);
-        adjusted.push(rgbToHex(nr, ng, nb));
-      }
-      const finalPalette = Array.from(new Set(adjusted)).slice(0, 8);
-      return finalPalette;
+async function streamAdvice(skin,tab,container){
+  const{undertone,depth,season}=skin.cls;
+  const palette=skin.palette.map(p=>p.hex).join(', ');
+  const P={
+    clothing:`You are a top personal colour stylist. Client: skin hex ${skin.hex} (RGB ${skin.r},${skin.g},${skin.b}), ${undertone} undertone, ${season} season, ${depth} depth. Palette: ${palette}.
+Write EXACTLY 4 short paragraphs (no bullets, no headers, flowing prose):
+P1: 3–4 specific clothing colours they should ALWAYS wear and why (name exact shades like "dusty mauve", "burnt sienna")
+P2: 2–3 colours to AVOID and why (be specific)
+P3: Two complete outfit ideas with specific colour combinations
+P4: One celebrity with a similar colour profile and one styling tip
+Use **bold** only for colour names.`,
+    makeup:`You are a professional makeup artist. Client: ${undertone} undertone, ${depth} skin, ${season} season (${skin.hex}).
+Write EXACTLY 4 short paragraphs (flowing prose, no bullets):
+P1: Foundation strategy — undertone code (W/Y/N/C) to look for, 1–2 real product recommendations
+P2: Best lip colours — 4–5 exact shades and which to avoid
+P3: Eye makeup — eyeshadow tones, liner, mascara suggestions
+P4: Blush and highlight with specific shade names
+Use **bold** for shade names.`,
+    occasion:`You are a fashion stylist. Client: ${undertone} undertone, ${season} season, ${depth} skin (${skin.hex}).
+Write EXACTLY 4 short paragraphs (flowing prose):
+P1: 2–3 best colours for OFFICE/WORK with outfit ideas
+P2: Best colours for EVENING/FORMAL occasions
+P3: CASUAL weekend palette with a specific outfit example
+P4: Their single "signature colour" — the one that will always make them remarkable — and why
+Use **bold** for colour and occasion names.`,
+    avoid:`You are an honest personal colour consultant. Client: ${undertone} undertone, ${season} season, ${depth} skin (${skin.hex}).
+Write EXACTLY 3 short paragraphs (flowing prose, kind but honest):
+P1: 4–5 exact colours that clash — name each precisely with a one-line reason
+P2: Pattern and colour combination mistakes to avoid
+P3: The #1 most common fashion mistake for this profile, and exactly how to fix it
+Use **bold** for colour names.`
+  };
+  container.innerHTML=`<div class="sdots"><div class="sdot"></div><div class="sdot"></div><div class="sdot"></div></div>`;
+  try{
+    const url=`https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:streamGenerateContent?alt=sse&key=${GEMINI_KEY}`;
+    const resp=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({contents:[{role:'user',parts:[{text:P[tab]}]}],
+        generationConfig:{temperature:0.72,maxOutputTokens:700,topP:0.9}})});
+    if(!resp.ok){
+      const errJson=await resp.json().catch(()=>null);
+      const errMsg=errJson?.error?.message||`HTTP ${resp.status}`;
+      if(resp.status===429)throw new Error(`Rate limit reached — please wait and try again.`);
+      throw new Error(errMsg);
     }
-
-
-    const fileInput = document.getElementById('fileInput');
-    const analyzeBtn = document.getElementById('analyzeBtn');
-    const resetBtn = document.getElementById('resetBtn');
-    const copyJSONBtn = document.getElementById('copyJSON');
-    const exportPNGBtn = document.getElementById('exportPNG');
-    const results = document.getElementById('results');
-    const stage = document.getElementById('stage');
-    const canvas = document.getElementById('canvas');
-    const ctx = canvas.getContext('2d', { willReadFrequently: true });
-    const mask = document.getElementById('mask');
-    const mctx = mask.getContext('2d');
-    const faceOverlay = document.getElementById('faceOverlay');
-    const fctx = faceOverlay.getContext('2d');
-    const handle = document.getElementById('handle');
-    let img = new Image();
-    let hasImage = false;
-    let model = null;
-    let faceDetection = null;
-
-    let circle = { x: canvas.width * 0.5, y: canvas.height * 0.55, r: Math.min(canvas.width, canvas.height) * 0.12 };
-
-    (async function loadModel() { try { model = await blazeface.load(); console.log('BlazeFace loaded'); } catch (err) { console.warn('Failed to load blazeface:', err); } })();
-
-    function fitImageToCanvas(image) {
-      const cw = canvas.width, ch = canvas.height;
-      const iw = image.naturalWidth || image.width, ih = image.naturalHeight || image.height;
-      const canvasAspect = cw / ch;
-      const imgAspect = iw / ih;
-
-      let dw, dh, dx, dy, scale;
-
-      if (imgAspect > canvasAspect) {
-        dw = cw;
-        scale = dw / iw;
-        dh = ih * scale;
-        dx = 0;
-        dy = (ch - dh) / 2;
-      } else {
-        dh = ch;
-        scale = dh / ih;
-        dw = iw * scale;
-        dy = 0;
-        dx = (cw - dw) / 2;
-      }
-
-      img._renderParams = { dx: Math.round(dx), dy: Math.round(dy), dw: Math.round(dw), dh: Math.round(dh), scale };
-
-      ctx.fillStyle = '#0f1117'; 
-      ctx.fillRect(0, 0, cw, ch);
-      ctx.drawImage(image, 0, 0, iw, ih, dx, dy, dw, dh);
-
-      mctx.clearRect(0, 0, mask.width, mask.height);
-      fctx.clearRect(0, 0, faceOverlay.width, faceOverlay.height);
-    }
-
-    function draw() {
-      if (hasImage && img._renderParams) {
-        const p = img._renderParams;
-        const { sx, sy, sw, sh } = { sx: 0, sy: 0, sw: img.naturalWidth, sh: img.naturalHeight };
-        
-        ctx.fillStyle = '#0f1117';
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-        ctx.drawImage(img, sx, sy, sw, sh, p.dx, p.dy, p.dw, p.dh);
-      } else {
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-      }
-
-      mctx.clearRect(0, 0, mask.width, mask.height);
-      mctx.fillStyle = 'rgba(255,255,255,0.08)';
-      mctx.fillRect(0, 0, mask.width, mask.height);
-      mctx.save();
-      mctx.globalCompositeOperation = 'destination-out';
-      mctx.beginPath();
-      mctx.arc(circle.x, circle.y, circle.r, 0, Math.PI * 2);
-      mctx.fill();
-      mctx.restore();
-      
-      handle.style.left = (circle.x + circle.r - 7) + 'px';
-      handle.style.top = (circle.y - 7) + 'px';
-
-      fctx.clearRect(0, 0, faceOverlay.width, faceOverlay.height);
-      if (faceDetection && faceDetection.topLeft && img._renderParams) {
-        const { dx, dy, scale } = img._renderParams;
-        const [tlx, tly] = [faceDetection.topLeft[0] * scale + dx, faceDetection.topLeft[1] * scale + dy];
-        const [brx, bry] = [faceDetection.bottomRight[0] * scale + dx, faceDetection.bottomRight[1] * scale + dy];
-
-        fctx.strokeStyle = 'rgba(124,58,237,0.9)';
-        fctx.lineWidth = 2;
-        fctx.strokeRect(tlx, tly, brx - tlx, bry - tly);
-
-        if (faceDetection.landmarks) {
-          for (const lm of faceDetection.landmarks) {
-            fctx.beginPath();
-            fctx.fillStyle = 'rgba(124,58,237,0.95)';
-            fctx.arc(lm[0] * scale + dx, lm[1] * scale + dy, 3, 0, Math.PI * 2);
-            fctx.fill();
-          }
-        }
-        if (faceDetection.samplePoints) {
-          for (const sp of faceDetection.samplePoints) {
-            fctx.beginPath();
-            fctx.fillStyle = 'rgba(255,255,255,0.95)';
-            fctx.arc(sp[0] * scale + dx, sp[1] * scale + dy, 6, 0, Math.PI * 2);
-            fctx.fill();
-            fctx.beginPath();
-            fctx.strokeStyle = 'rgba(0,0,0,0.6)';
-            fctx.arc(sp[0] * scale + dx, sp[1] * scale + dy, 6, 0, Math.PI * 2);
-            fctx.stroke();
-          }
-        }
+    container.innerHTML=`<div class="stream-text" id="stx"></div>`;
+    const stx=$('stx');let full='';
+    const reader=resp.body.getReader(),dec=new TextDecoder();let buf='';
+    while(true){
+      const{done,value}=await reader.read();if(done)break;
+      buf+=dec.decode(value,{stream:true});
+      const parts=buf.split('\n\n');buf=parts.pop()||'';
+      for(const part of parts){
+        const line=part.trim();if(!line.startsWith('data:'))continue;
+        const jsonStr=line.slice(5).trim();if(!jsonStr||jsonStr==='[DONE]')continue;
+        try{
+          const j=JSON.parse(jsonStr);
+          const text=j?.candidates?.[0]?.content?.parts?.[0]?.text;
+          if(text){full+=text;stx.innerHTML=md2html(full)+'<span class="stream-cursor"></span>';}
+        }catch{}
       }
     }
+    stx.innerHTML=md2html(full||offlineAdvice(skin,tab));
+  }catch(e){
+    console.error(e);
+    container.innerHTML=`<div class="stream-text"><div class="err-box" style="margin-bottom:14px">⚠ ${e.message||'Unknown error'}</div>${offlineAdvice(skin,tab)}</div>`;
+  }
+}
 
-    function computeCheek(landmarks, side) {
-      if (!landmarks || landmarks.length < 3) return null;
-      const rightEye = landmarks[0], leftEye = landmarks[1], nose = landmarks[2], rightEar = landmarks[4] || null, leftEar = landmarks[5] || null, eye = side === 'left' ? leftEye : rightEye;
-      const vx = nose[0] - eye[0], vy = nose[1] - eye[1], alongX = eye[0] + vx * 0.55, alongY = eye[1] + vy * 0.55; let perpX = -vy, perpY = vx;
-      const dist = Math.hypot(vx, vy) || 1, scale = 0.5 * dist, n = Math.hypot(perpX, perpY) || 1;
-      perpX = (perpX / n) * scale; perpY = (perpY / n) * scale;
-      const ear = side === 'left' ? leftEar : rightEar;
-      if (ear) { const testX = alongX + perpX, testY = alongY + perpY; const d1 = Math.hypot(ear[0] - testX, ear[1] - testY); const d2 = Math.hypot(ear[0] - (alongX - perpX), ear[1] - (alongY - perpY)); if (d2 < d1) { perpX *= -1; perpY *= -1; } }
-      return [alongX + perpX, alongY + perpY];
-    }
+function md2html(txt){
+  return txt.replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>').replace(/\*(.*?)\*/g,'<em>$1</em>')
+    .split(/\n\n+/).filter(p=>p.trim()).map(p=>`<p>${p.trim()}</p>`).join('');
+}
 
-    function computeForehead(landmarks) {
-      if (!landmarks || landmarks.length < 3) return null;
-      const rightEye = landmarks[0], leftEye = landmarks[1], midX = (rightEye[0] + leftEye[0]) / 2, midY = (rightEye[1] + leftEye[1]) / 2, nose = landmarks[2], vy = nose[1] - midY, up = -Math.abs(vy) * 0.9;
-      return [midX, midY + up * 0.6];
-    }
+function offlineAdvice(skin,tab){
+  const{undertone,season}=skin.cls;
+  const iW=undertone==='Warm';
+  const clothing={
+    Spring:`<p>Your warm, clear colouring shines in **coral**, **peach**, **warm turquoise**, and **golden yellow**. These bright, warm hues mirror your skin's clarity. **Ivory** and **camel** are your perfect neutrals.</p><p>Steer clear of **cool grey**, **icy lavender**, and **stark white** — they wash out your natural warmth.</p><p>Try: **warm coral blouse** + **camel wide-leg trousers** + gold jewellery. Or: **peacock teal dress** + **warm ivory cardigan**.</p><p>Beyoncé's warm, radiant styling is your blueprint — bold colours with warmth, nothing icy.</p>`,
+    Autumn:`<p>Your rich depth calls for **terracotta**, **olive green**, **burnt orange**, **chocolate brown**, and **mustard yellow**. **Camel** and **warm chocolate** are your power neutrals.</p><p>Avoid **hot pink**, **icy blue**, **bright white**, and **silver** — they fight your depth.</p><p>Try: **olive green knit** + **chocolate cord trousers** + **camel coat**. Or: **burnt orange midi dress** + **tan ankle boots**.</p><p>Jennifer Lopez's earth-tone moments and Priyanka Chopra's warm palette are your reference points.</p>`,
+    Winter:`<p>Your cool, high-contrast colouring was made for **true red**, **royal blue**, **emerald green**, **hot pink**, and **pure white** or **pure black**. **Icy pink** and **icy blue** are also perfect.</p><p>Avoid **orange**, **terracotta**, **camel**, **mustard**, and **warm brown** — they add unwanted warmth.</p><p>Try: **cobalt blue blazer** + **crisp white shirt** + **black trousers**. Evening: **true red gown** alone.</p><p>Dua Lipa and Deepika Padukone are your style icons — bold, saturated, high-contrast.</p>`,
+    Summer:`<p>Your soft, cool colouring glows in **dusty rose**, **mauve**, **powder blue**, **sage green**, and **lavender**. **Soft grey-blue** and **rose-brown** are your ideal neutrals.</p><p>Avoid **bright orange**, **camel**, **warm red**, and neons. Try **charcoal** or **deep navy** instead of black.</p><p>Try: **dusty rose blouse** + **soft grey trousers** + silver jewellery. Or: **lavender knit dress** + **dove grey coat**.</p><p>Emma Stone's cool-toned looks and Taylor Swift's muted romantic palette are perfect inspiration.</p>`,
+    Neutral:`<p>Your balanced colouring is flexible — **navy**, **forest green**, **burgundy**, **teal**, and **warm white** all flatter. Stick to medium saturation for best results.</p><p>Avoid the extremes: icy grey-based neutrals and heavily orange-based colours both require more effort than they're worth.</p><p>Try: **navy blazer** + **white shirt** + **dark jeans**. Or: **forest green dress** + **nude heels**.</p><p>Your neutrality is an advantage — classic, clear tones always look polished on you.</p>`
+  };
+  const makeup={
+    Warm:`<p>Look for foundations labelled **W** (warm) or **Y** (yellow). Try **NARS Natural Radiant Longwear** in the W range or **Fenty Beauty** in a Y-suffix shade.</p><p>Lips: **warm coral**, **brick red**, **terracotta**, **peachy nude**, **warm berry**. Avoid anything blue-based.</p><p>Eyes: **warm bronze**, **copper**, **burnt sienna**, **champagne gold** as highlight. Use warm brown liner.</p><p>Blush: **peach**, **apricot**, or **warm coral**. Highlight with **warm gold** or **champagne**.</p>`,
+    Cool:`<p>Look for foundations labelled **C** (cool) or **N** (neutral-cool). Try **MAC Studio Fix** in a C shade or **Fenty Beauty** in a cool-leaning code.</p><p>Lips: **berry**, **mauve**, **wine**, **cool pink**, **blue-red**. Avoid orange-based reds and peachy nudes.</p><p>Eyes: **taupe**, **cool grey**, **smoky charcoal**, **dusty purple**. Navy liner is often more flattering than black.</p><p>Blush: **cool rose**, **soft pink**, **cool mauve**. Highlight with **icy champagne** or **silver pearl**.</p>`,
+    Neutral:`<p>Both **W** and **C/N** foundations can work. Start with **Fenty Beauty Pro Filt'r** in an N shade as your reference.</p><p>Lips: **rose-nude**, **warm pink**, **soft berry**, **muted red** all work well.</p><p>Eyes: **warm taupe**, **soft brown**, **rose gold**, and **soft charcoal** all complement your balanced colouring.</p><p>Blush: **warm rose** or **peach-rose** — the in-between tone that suits most occasions.</p>`
+  };
+  if(tab==='clothing')return(clothing[season]||clothing.Neutral).replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>');
+  if(tab==='makeup')return(makeup[undertone]||makeup.Neutral).replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>');
+  if(tab==='occasion')return`<p>For <strong>work</strong>, your ${undertone} undertone suits <strong>navy</strong>, <strong>${iW?'warm camel':'cool grey'}</strong>, and <strong>${iW?'olive':'charcoal'}</strong> — always polished.</p><p>For <strong>evening</strong>, lean into <strong>${iW?'terracotta and gold':'jewel tones and icy brights'}</strong>. Your colouring glows in <strong>${iW?'copper and burnt orange':'deep burgundy and emerald'}</strong>.</p><p>For <strong>weekends</strong>, try <strong>${iW?'faded denim with a warm rust tee':'washed navy with a soft pink knit'}</strong>.</p><p>Your <strong>signature colour</strong>: <strong>${iW?'terracotta — sun-kissed and effortless':'cobalt blue — your contrast becomes unforgettable'}</strong>.</p>`;
+  return`<p>The colours most likely to clash with your colouring: <strong>${iW?'icy grey, cool lavender, stark white, electric blue':'warm orange, camel, mustard, terracotta, golden yellow'}</strong>.</p><p>Avoid pairing <strong>two muted tones</strong> together — the combination reads flat and low-energy.</p><p>The most common mistake for your profile is defaulting to <strong>${iW?'safe beige and grey neutrals':'all-black outfits'}</strong>. Swap in <strong>${iW?'camel, ivory, and olive':'charcoal, navy, or crisp white'}</strong> instead.</p>`;
+}
 
-    async function detectFaceOnImage() {
-      faceDetection = null;
-      if (!model || !hasImage || !img._renderParams) return null;
-      
-      const tempCanvas = document.createElement('canvas');
-      tempCanvas.width = img.naturalWidth;
-      tempCanvas.height = img.naturalHeight;
-      const tempCtx = tempCanvas.getContext('2d');
-      tempCtx.drawImage(img, 0, 0);
+btnAnalyze.addEventListener('click',async()=>{
+  if(!hasImg||!img._rp)return;
+  if(model&&!faceDet)await detectFace();
+  resArea.innerHTML=`<div class="analyzing"><div class="a-ring"></div><div><div class="as1" id="as1">Sampling skin pixels…</div><div class="as2" id="as2">Running YCbCr classifier</div></div></div>`;
+  const steps=[['Sampling skin pixels…','Running YCbCr classifier'],['Measuring undertone…','Analysing hue & saturation'],['Classifying season…','Cross-referencing colour theory'],['Building your palette…','Deriving personalised harmonics'],['Preparing AI advice…','Calling Gemini AI stylist']];
+  let si=0;
+  const iv=setInterval(()=>{si=(si+1)%steps.length;const a=$('as1'),b=$('as2');if(a)a.textContent=steps[si][0];if(b)b.textContent=steps[si][1];},750);
+  await new Promise(r=>setTimeout(r,80));
+  const raw=sampleSkin();clearInterval(iv);
+  if(!raw){resArea.innerHTML=`<div class="err-box" style="margin:20px 0">⚠ Not enough skin pixels detected. Place the circle directly on your cheek or forehead in a well-lit, close portrait photo.</div>`;return;}
+  raw.cls=classify(raw.hsv);raw.palette=buildPalette(raw);lastResult=raw;
+  renderResults(raw);exprow.style.display='flex';btnPNG.disabled=false;btnJSON.disabled=false;
+});
 
-      try {
-        const predictions = await model.estimateFaces(tempCanvas, false);
-        if (!predictions || predictions.length === 0) {
-          results.innerHTML = '<p class="muted">No face detected. Move the circle manually.</p>';
-          return null;
-        }
-        
-        predictions.sort((a, b) => ((b.bottomRight[0] - b.topLeft[0]) * (b.bottomRight[1] - b.topLeft[1])) - ((a.bottomRight[0] - a.topLeft[0]) * (a.bottomRight[1] - a.topLeft[1])));
-        const f = predictions[0];
-        
-        faceDetection = { topLeft: f.topLeft, bottomRight: f.bottomRight, landmarks: f.landmarks };
+function renderResults(skin){
+  const{h,s,v}=skin.hsv,{undertone,depth,season}=skin.cls;
+  const utc=undertone==='Warm'?'warm':undertone==='Cool'?'cool':'neutral';
+  resArea.innerHTML=`<div class="res-in">
+    <div class="skin-card">
+      <div class="skin-sw" style="background:${skin.hex}"></div>
+      <div class="skin-data">
+        <div class="skin-hex">${skin.hex.toUpperCase()}</div>
+        <div class="skin-meta">RGB ${skin.r}, ${skin.g}, ${skin.b} &nbsp;·&nbsp; HSV ${h.toFixed(0)}° ${(s*100).toFixed(0)}% ${(v*100).toFixed(0)}%</div>
+        <div class="skin-meta">${depth} depth · ${undertone} undertone · ${season} season</div>
+        <div class="bars">
+          <div class="brow"><span class="blbl">H</span><div class="btrack"><div class="bfill" style="width:${(h/360*100).toFixed(1)}%;background:hsl(${h.toFixed(0)},80%,55%)"></div></div><span class="bval">${h.toFixed(0)}°</span></div>
+          <div class="brow"><span class="blbl">S</span><div class="btrack"><div class="bfill" style="width:${(s*100).toFixed(1)}%;background:var(--pink)"></div></div><span class="bval">${(s*100).toFixed(0)}%</span></div>
+          <div class="brow"><span class="blbl">V</span><div class="btrack"><div class="bfill" style="width:${(v*100).toFixed(1)}%;background:var(--cyan)"></div></div><span class="bval">${(v*100).toFixed(0)}%</span></div>
+        </div>
+      </div>
+    </div>
+    <div class="tags">
+      <span class="tag ${utc}">⬤ ${undertone} Undertone</span>
+      <span class="tag season">✦ ${season} Season</span>
+      <span class="tag">◆ ${depth} Depth</span>
+    </div>
+    <div class="sec">Your Personalised Colour Palette</div>
+    <div class="cgrid">
+      ${skin.palette.map((p,i)=>`<div class="sw" style="animation-delay:${i*.04}s" title="${p.lbl} — ${p.wear}" onclick="window.copyColor('${p.hex}')"><div class="sw-col" style="background:${p.hex}"></div><div class="sw-hex">${p.hex.toUpperCase()}</div><div class="sw-hint">Copy</div></div>`).join('')}
+    </div>
+    <div class="sec">How to Wear Each Colour</div>
+    <div class="chips">
+      ${skin.palette.map(p=>`<div class="chip"><div class="chip-dot" style="background:${p.hex}"></div><div><div class="chip-label">${p.lbl}</div><div class="chip-wear">${p.wear}</div></div></div>`).join('')}
+    </div>
+    <div class="ai-block">
+      <div class="ai-tabs">
+        <button class="ai-tab active" onclick="switchTab('clothing',this)">Clothing</button>
+        <button class="ai-tab" onclick="switchTab('makeup',this)">Makeup</button>
+        <button class="ai-tab" onclick="switchTab('occasion',this)">Occasions</button>
+        <button class="ai-tab" onclick="switchTab('avoid',this)">What to Avoid</button>
+      </div>
+      <div class="ai-body" id="aiBody"></div>
+    </div>
+  </div>`;
+  streamAdvice(skin,'clothing',$('aiBody'));
+}
 
-        const leftCheek = computeCheek(f.landmarks, 'left');
-        const rightCheek = computeCheek(f.landmarks, 'right');
-        const forehead = computeForehead(f.landmarks);
+window.switchTab=function(tab,btn){
+  if(!lastResult)return;
+  document.querySelectorAll('.ai-tab').forEach(t=>t.classList.remove('active'));
+  btn.classList.add('active');
+  const body=$('aiBody');if(body)streamAdvice(lastResult,tab,body);
+};
+window.copyColor=function(hex){
+  navigator.clipboard.writeText(hex).then(()=>toast('Copied '+hex.toUpperCase()+' ✓')).catch(()=>toast('Copy failed'));
+};
 
-        const samplePoints = [];
-        if (leftCheek) samplePoints.push(leftCheek);
-        if (rightCheek) samplePoints.push(rightCheek);
-        if (forehead) samplePoints.push(forehead);
-        faceDetection.samplePoints = samplePoints;
+btnPNG.addEventListener('click',()=>{
+  if(!lastResult)return;
+  const{palette,hex,cls}=lastResult;
+  const cols=6,cell=76,gap=8,pad=26,th=64;
+  const rows=Math.ceil(palette.length/cols);
+  const W=pad*2+cols*(cell+gap)-gap,H=pad*2+th+rows*(cell+gap)-gap+pad;
+  const c=document.createElement('canvas');c.width=W;c.height=H;
+  const cx=c.getContext('2d');
+  cx.fillStyle='#080a0f';cx.fillRect(0,0,W,H);
+  cx.fillStyle='#f0f2ff';cx.font='bold 18px Outfit,system-ui,sans-serif';cx.fillText('ChromaSelf Palette',pad,pad+18);
+  cx.fillStyle='#606880';cx.font='12px system-ui,sans-serif';
+  cx.fillText(`${cls.season} · ${cls.undertone} undertone · ${hex}`,pad,pad+37);
+  palette.forEach(({hex:col},i)=>{
+    const cx2=Math.floor(i/cols),cy2=i%cols;
+    const px=pad+cy2*(cell+gap),py=pad+th+cx2*(cell+gap);
+    cx.fillStyle=col;cx.beginPath();cx.roundRect(px,py,cell,cell,8);cx.fill();
+    cx.fillStyle='rgba(0,0,0,.7)';cx.beginPath();cx.roundRect(px,py+cell-22,cell,22,{lowerLeft:8,lowerRight:8});cx.fill();
+    cx.fillStyle='rgba(255,255,255,.85)';cx.font='10px monospace';cx.fillText(col.toUpperCase(),px+5,py+cell-8);
+  });
+  const a=document.createElement('a');a.download=`chromaself_${cls.season.toLowerCase()}.png`;
+  a.href=c.toDataURL('image/png');a.click();toast('Palette PNG exported ✓');
+});
 
-        const { dx, dy, scale } = img._renderParams;
-        const [tlx, tly] = f.topLeft;
-        const [brx, bry] = f.bottomRight;
-        const faceSize = Math.max(brx - tlx, bry - tly);
-        
-        circle.r = clamp(Math.round(faceSize * scale * 0.12), 18, Math.min(canvas.width, canvas.height) / 3);
-        circle.x = clamp((tlx + brx) / 2 * scale + dx, circle.r + 2, canvas.width - circle.r - 2);
-        circle.y = clamp((tly + bry) / 2 * scale + dy, circle.r + 2, canvas.height - circle.r - 2);
+btnJSON.addEventListener('click',async()=>{
+  if(!lastResult)return;
+  const out={skin:{hex:lastResult.hex,rgb:{r:lastResult.r,g:lastResult.g,b:lastResult.b},hsv:lastResult.hsv},classification:lastResult.cls,palette:lastResult.palette.map(p=>({hex:p.hex,label:p.lbl,use:p.wear}))};
+  try{await navigator.clipboard.writeText(JSON.stringify(out,null,2));toast('Palette JSON copied ✓');}
+  catch{toast('Copy failed');}
+});
 
-        draw();
-        results.innerHTML = '<p class="muted">Face detected. Click Analyze to get your palette.</p>';
-        return f;
-      } catch (err) {
-        console.warn('Face detect error', err);
-        return null;
-      }
-    }
-    fileInput.addEventListener('change', (e) => { const file = e.target.files[0]; if (!file) return; const url = URL.createObjectURL(file); img = new Image(); img.onload = async () => { hasImage = true; fitImageToCanvas(img); analyzeBtn.disabled = false; resetBtn.disabled = false; copyJSONBtn.disabled = true; exportPNGBtn.disabled = true; await detectFaceOnImage(); }; img.src = url; });
-
-    let dragging = false, mode = 'resize';
-    handle.addEventListener('mousedown', (e) => { dragging = true; mode = e.shiftKey ? 'move' : 'resize'; handle.style.cursor = 'grabbing'; e.preventDefault(); });
-    window.addEventListener('mouseup', () => { dragging = false; handle.style.cursor = 'grab'; });
-    window.addEventListener('mousemove', (e) => { if (!dragging) return; const rect = stage.getBoundingClientRect(); const px = (e.clientX - rect.left) * (canvas.width / rect.width); const py = (e.clientY - rect.top) * (canvas.height / rect.height); if (mode === 'resize') { const dx = px - circle.x, dy = py - circle.y; circle.r = clamp(Math.hypot(dx, dy), 12, Math.min(canvas.width, canvas.height) / 2); } else { circle.x = clamp(px, circle.r + 2, canvas.width - circle.r - 2); circle.y = clamp(py, circle.r + 2, canvas.height - circle.r - 2); } draw(); });
-    stage.addEventListener('click', (e) => { if (!hasImage) return; const rect = stage.getBoundingClientRect(); const px = (e.clientX - rect.left) * (canvas.width / rect.width); const py = (e.clientY - rect.top) * (canvas.height / rect.height); const dx = px - (circle.x + circle.r - 7), dy = py - (circle.y - 7); if (Math.hypot(dx, dy) < 18) return; circle.x = clamp(px, circle.r + 2, canvas.width - circle.r - 2); circle.y = clamp(py, circle.r + 2, canvas.height - circle.r - 2); draw(); });
-    resetBtn.addEventListener('click', async () => { circle = { x: canvas.width * 0.5, y: canvas.height * 0.55, r: Math.min(canvas.width, canvas.height) * 0.12 }; draw(); results.innerHTML = '<p class="muted">Sampler reset.</p>'; copyJSONBtn.disabled = true; exportPNGBtn.disabled = true; await detectFaceOnImage(); });
-
-        analyzeBtn.addEventListener('click', async () => {
-      if (!hasImage || !img._renderParams) return;
-      if (model && !faceDetection) await detectFaceOnImage();
-      
-      const { dx, dy, scale } = img._renderParams;
-
-      const tempCanvas = document.createElement('canvas');
-      tempCanvas.width = img.naturalWidth;
-      tempCanvas.height = img.naturalHeight;
-      const tempCtx = tempCanvas.getContext('2d', { willReadFrequently: true });
-      tempCtx.drawImage(img, 0, 0);
-      const imageData = tempCtx.getImageData(0, 0, tempCanvas.width, tempCanvas.height).data;
-
-      const sampleRegions = [];
-      if (faceDetection && faceDetection.samplePoints && faceDetection.samplePoints.length > 0) {
-        const spRadius = Math.max(10, Math.round(circle.r / scale * 0.6));
-        for (const sp of faceDetection.samplePoints) {
-          sampleRegions.push({ cx: Math.round(sp[0]), cy: Math.round(sp[1]), r: spRadius });
-        }
-      } else {
-        const imgX = (circle.x - dx) / scale;
-        const imgY = (circle.y - dy) / scale;
-        const imgR = circle.r / scale;
-        sampleRegions.push({ cx: Math.round(imgX), cy: Math.round(imgY), r: Math.round(imgR * 0.6) });
-      }
-
-      const pxs = [];
-      for (const reg of sampleRegions) {
-        const { cx, cy, r } = reg, r2 = r * r;
-        for (let y = cy - r; y <= cy + r; y++) {
-          if (y < 0 || y >= tempCanvas.height) continue;
-          for (let x = cx - r; x <= cx + r; x++) {
-            if (x < 0 || x >= tempCanvas.width) continue;
-            const dx = x - cx, dy = y - cy;
-            if (dx * dx + dy * dy <= r2) {
-              const idx = (y * tempCanvas.width + x) * 4;
-              if (likelySkin(imageData[idx], imageData[idx + 1], imageData[idx + 2])) {
-                pxs.push([imageData[idx], imageData[idx + 1], imageData[idx + 2]]);
-              }
-            }
-          }
-        }
-      }
-      if (pxs.length < 150) { results.innerHTML = '<p class="muted">Not enough skin pixels detected. Try a different photo or adjust the circle.</p>'; return; }
-
-      const pixelsWithLuma = pxs.map(p => ({ r: p[0], g: p[1], b: p[2], luma: 0.299 * p[0] + 0.587 * p[1] + 0.114 * p[2] }));
-      pixelsWithLuma.sort((a, b) => a.luma - b.luma);
-      const trimPercent = 0.20; 
-      const startIndex = Math.floor(pixelsWithLuma.length * trimPercent);
-      const endIndex = Math.ceil(pixelsWithLuma.length * (1 - trimPercent));
-      const filteredPixels = pixelsWithLuma.slice(startIndex, endIndex);
-
-      if (filteredPixels.length < 50) {
-        results.innerHTML = '<p class="muted">Could not get a stable skin reading due to lighting. Try a photo with more even, natural light.</p>';
-        return;
-      }
-
-      const rs = filteredPixels.map(p => p.r), gs = filteredPixels.map(p => p.g), bs = filteredPixels.map(p => p.b);
-      const medR = median(rs), medG = median(gs), medB = median(bs);
-      const hexColor = rgbToHex(medR, medG, medB);
-      const skinHsv = rgbToHsv(medR, medG, medB);
-
-      let undertone = "Neutral";
-      if (skinHsv.h >= 25 && skinHsv.h <= 55 && skinHsv.s > 0.2) undertone = "Warm"; // More specific warm range
-      else if ((skinHsv.h >= 340 || skinHsv.h <= 20) && skinHsv.s > 0.2) undertone = "Cool"; // More specific cool range (red/pink tones)
-
-      let season = "Neutral";
-      if (undertone === "Warm") { season = skinHsv.v > 0.7 ? "Spring (Warm & Clear)" : "Autumn (Warm & Muted)"; }
-      else if (undertone === "Cool") { season = skinHsv.v > 0.7 ? "Winter (Cool & Bright)" : "Summer (Cool & Soft)"; }
-
-      const rawPalette = await generatePaletteFromSkin([medR, medG, medB]);
-      let palette;
-      if (rawPalette && rawPalette.length > 0) {
-        palette = adjustPaletteForSeason(rawPalette, undertone, season);
-      } else {
-        console.warn("API returned empty palette. Generating a manual fallback.");
-        undertone = "Neutral";
-        season = "Neutral";
-        palette = [];
-        const { h, s, v } = skinHsv;
-        palette.push(rgbToHex(...hsvToRgb((h + 180) % 360, clamp(s, 0.5, 0.8), clamp(v, 0.6, 0.9))));
-        palette.push(rgbToHex(...hsvToRgb((h + 30) % 360, clamp(s, 0.4, 0.7), clamp(v, 0.7, 1.0))));
-        palette.push(rgbToHex(...hsvToRgb((h - 30 + 360) % 360, clamp(s, 0.4, 0.7), clamp(v, 0.7, 1.0))));
-        palette.push("#FFFFFF", "#2c2c2c");
-        while (palette.length < 8) {
-          palette.push(rgbToHex(...hsvToRgb(h, Math.random() * 0.2 + 0.1, Math.random() * 0.4 + 0.6)));
-        }
-      }
-
-      const swatchHTML = palette.map(c => `<div class="swatch" style="background:${c}"><small>${c}</small></div>`).join('');
-      results.innerHTML = `
-        <div class="row">
-          <div>
-            <h3 style="margin:0 0 6px">Your Skin Read</h3>
-            <div class="tag mono">Skin RGB: ${medR},${medG},${medB} <span class="tag" style="margin-left:6px">${hexColor}</span></div>
-            <p class="muted">HSV ≈ <span class="mono">H${skinHsv.h.toFixed(0)}° S${(skinHsv.s * 100).toFixed(0)}% V${(skinHsv.v * 100).toFixed(0)}%</span></p>
-            <p><strong>Undertone:</strong> ${undertone} <br/><strong>Season (heuristic):</strong> ${season}</p>
-          </div>
-          <div>
-            <h3 style="margin:0 0 6px">Suggested Clothing Colours</h3>
-            <div class="swatches">${swatchHTML}</div>
-          </div>
-        </div>`;
-
-      copyJSONBtn.disabled = false; exportPNGBtn.disabled = false;
-      const payload = { skin: { rgb: [medR, medG, medB], hex: hexColor, hsv: skinHsv }, undertone, season, palette };
-      copyJSONBtn.onclick = async () => { try { await navigator.clipboard.writeText(JSON.stringify(payload, null, 2)); copyJSONBtn.textContent = '✅ Copied!'; setTimeout(() => copyJSONBtn.textContent = '📋 Copy Palette JSON', 1500); } catch (err) { alert('Copy failed.'); } };
-      exportPNGBtn.onclick = () => { const pad = 24, cell = 64, cols = Math.min(8, palette.length), rows = Math.ceil(palette.length / cols); const w = pad * 2 + cols * cell + (cols - 1) * 8, h = pad * 2 + rows * cell + (rows - 1) * 8 + 60; const c = document.createElement('canvas'); c.width = w; c.height = h; const c2 = c.getContext('2d'); c2.fillStyle = '#111318'; c2.fillRect(0, 0, w, h); c2.fillStyle = '#fff'; c2.font = '16px ui-sans-serif, system-ui'; c2.fillText(`Palette: ${season}`, pad, pad + 16); palette.forEach((col, i) => { const x = i % cols, y = Math.floor(i / cols); const px = pad + x * (cell + 8), py = pad + 24 + y * (cell + 8); c2.fillStyle = col; c2.fillRect(px, py, cell, cell); c2.fillStyle = 'rgba(255,255,255,.9)'; c2.fillRect(px, py + cell - 18, cell, 18); c2.fillStyle = '#111'; c2.font = '12px ui-sans-serif'; c2.fillText(col, px + 6, py + cell - 6); }); const link = document.createElement('a'); link.download = `palette_${season.replace(/[^a-z0-9]+/gi, '_').toLowerCase()}.png`; link.href = c.toDataURL('image/png'); link.click(); };
-    });
-
-    draw();
-
-    function resizeCanvasesToStage() { const rect = stage.getBoundingClientRect(); canvas.style.width = rect.width + 'px'; canvas.style.height = rect.height + 'px'; mask.style.width = rect.width + 'px'; mask.style.height = rect.height + 'px'; faceOverlay.style.width = rect.width + 'px'; faceOverlay.style.height = rect.height + 'px'; handle.style.zIndex = 10; }
-    window.addEventListener('resize', resizeCanvasesToStage);
-    resizeCanvasesToStage();
-
-  </script>
-  </body>
-
-</html>
+function resizeCanvases(){
+  const r=stage.getBoundingClientRect();
+  [cMain,cMask,cFace].forEach(cv=>{cv.style.width=r.width+'px';cv.style.height=r.height+'px';});
+}
+window.addEventListener('resize',resizeCanvases);
+resizeCanvases();
+drawMask();
+</script>
+</body>
+</html> 
