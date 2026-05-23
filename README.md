@@ -25,7 +25,7 @@
 
 ## 🚀 Live Demo
 
-👉 [Try It Now!](https://ai-color-platter.netlify.app/)
+👉 [Try It Now!](https://ai-color-paletter.netlify.app/)
 
 ---
 
